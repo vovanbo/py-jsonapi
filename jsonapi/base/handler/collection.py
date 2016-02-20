@@ -120,6 +120,8 @@ class CollectionHandler(BaseHandler):
         return it.
 
         http://jsonapi.org/format/#crud-creating
+
+        .. todo:: Support the include parameter?
         """
         # Make sure the request contains a valid JSON resource object.
         resource_object = self.request.json.get("data", dict())

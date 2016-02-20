@@ -115,6 +115,8 @@ class ResourceHandler(BaseHandler):
         Handles a PATCH request.
 
         http://jsonapi.org/format/#crud-updating
+
+        .. todo:: Support the *include* parameter?
         """
         data = self.request.json.get("data", dict())
         validators.assert_resource_object(data, source_pointer="/data/")

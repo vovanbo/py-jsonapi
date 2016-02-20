@@ -35,7 +35,6 @@ from collections import OrderedDict
 import logging
 
 # local
-from . import errors
 from .utilities import ensure_identifier_object
 
 
@@ -50,7 +49,9 @@ LOG = logging.getLogger(__file__)
 
 class Unserializer(object):
     """
-    Takes JSONapi documents and updates a resource.
+    Takes JSONapi documents and updates a resource. Because we may need to
+    load related resources mentionend in a JSONapi document, the most methods
+    a database session.
 
     :arg jsonapi.base.schema.Schema schema:
         The schema used to update resources
@@ -70,9 +71,6 @@ class Unserializer(object):
             The database session used to query the related resources.
         :arg dict relationships_object:
             A JSONapi relationships object
-
-        :raises jsonapi.base.errors.NotFound:
-            If a relative does not exist.
 
         :seealso: http://jsonapi.org/format/#document-resource-object-relationships
         """
@@ -167,31 +165,15 @@ class Unserializer(object):
         assert resource_object["id"] == self.schema.id_attribute.get(resource)
         assert resource_object["type"] == self.schema.typename
 
-        # Save all errors, which occur during the update.
-        error_list = errors.ErrorList()
-
         # Update the attributes
         if "attributes" in resource_object:
-            try:
-                self.update_attributes(resource, resource_object["attributes"])
-            except errors.Error as err:
-                error_list.append(err)
-            except errors.ErrorList as err:
-                error_list.extend(err)
+            self.update_attributes(resource, resource_object["attributes"])
 
         # Update the relationships
         if "relationships" in resource_object:
             rels_object = resource_object["relationships"]
             for rel_name, rel_object in rels_object.items():
-                try:
-                    self.update_relationship(db, resource, rel_name, rel_object)
-                except errors.Error as err:
-                    error_list.append(err)
-                except errors.ErrorList as err:
-                    error_list.extend(err)
-
-        if error_list:
-            raise error_list
+                self.update_relationship(db, resource, rel_name, rel_object)
         return None
 
     def update_attributes(self, resource, attributes_object):
@@ -206,21 +188,9 @@ class Unserializer(object):
 
         :seealso: http://jsonapi.org/format/#document-resource-object-attributes
         """
-        # Save all errors which occur in this error list. This way, the client
-        # can get a feedback about the validation of all attribute values.
-        error_list = errors.ErrorList()
-
         for name, value in attributes_object.items():
             attribute = self.schema.attributes[name]
-            try:
-                attribute.set(resource, value)
-            except errors.Error as err:
-                error_list.append(err)
-            except errors.ErrorList as err:
-                error_list.extend(err)
-
-        if error_list:
-            raise error_list
+            attribute.set(resource, value)
         return None
 
     def update_relationship(

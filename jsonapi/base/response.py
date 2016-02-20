@@ -67,18 +67,3 @@ class Response(object):
         client.
         """
         return self.file is not None
-
-    def print(self):
-        """
-        Prints information about the response object. This method is only
-        used for debugging purposes.
-        """
-        print("Response")
-        print("--------")
-        print("\t", "status", self.status)
-        print("\t", "headers", self.headers)
-        print("\t", "body")
-        print(self.body)
-        print("\t", "is_file", self.is_file)
-        print("\t", "file", self.file)
-        return None

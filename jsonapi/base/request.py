@@ -499,30 +499,3 @@ class Request(object):
         # Parse the body (This will also set *has_json*)
         self.json
         return self.has_json
-
-    def print(self):
-        """
-        Prints all information about the request to *stdout*. This method
-        is only used for *debugging*.
-        """
-        print("Request")
-        print("-------")
-        print("\t", "uri", self.uri)
-        print("\t", "method", self.method)
-        print("\t", "headers", self.headers)
-        print("\t", "body", self.body)
-        print("\t", "japi_uri_arguments", self.japi_uri_arguments)
-        print("\t", "parsed_uri", self.parsed_uri)
-        print("\t", "query", self.query)
-        print("\t", "japi_page_number", self.japi_page_number)
-        print("\t", "japi_page_size", self.japi_page_size)
-        print("\t", "japi_paginate", self.japi_paginate)
-        print("\t", "japi_offset", self.japi_offset)
-        print("\t", "japi_limit", self.japi_limit)
-        print("\t", "japi_filters", self.japi_filters)
-        print("\t", "japi_fields", self.japi_fields)
-        print("\t", "japi_include", self.japi_include)
-        print("\t", "japi_sort", self.japi_sort)
-        print("\t", "json", self.json)
-        print("\t", "has_json", self.has_json)
-        return None

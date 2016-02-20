@@ -34,7 +34,7 @@ modules.
 from collections import OrderedDict
 
 # local
-from . import errors
+from .errors import RelationshipNotFound
 
 
 __all__ = [
@@ -166,12 +166,12 @@ def relative_identifiers(relname, resource):
         The name of the relationship
     :arg resource:
 
-    :raises jsonapi.base.errors.RelationshipNotFound:
+    :raises RelationshipNotFound:
     """
     schema = resource._jsonapi["schema"]
     relationship = schema.relationships.get(relname)
     if relationship is None:
-        raise errors.RelationshipNotFound(schema.typename, relname)
+        raise RelationshipNotFound(schema.typename, relname)
     elif relationship.to_one:
         relative = relationship.get(resource)
         relatives = [relative] if relative else []

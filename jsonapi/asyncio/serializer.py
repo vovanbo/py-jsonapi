@@ -35,7 +35,6 @@ import logging
 
 # local
 import jsonapi
-from jsonapi.base import errors
 
 
 __all__ = [
@@ -129,31 +128,15 @@ class Unserializer(jsonapi.base.serializer.Unserializer):
         assert resource_object["id"] == self.schema.id_attribute.get(resource)
         assert resource_object["type"] == self.schema.typename
 
-        # Save all errors, which occur during the update.
-        error_list = errors.ErrorList()
-
         # Update the attributes
         if "attributes" in resource_object:
-            try:
-                self.update_attributes(resource, resource_object["attributes"])
-            except errors.Error as err:
-                error_list.append(err)
-            except errors.ErrorList as err:
-                error_list.extend(err)
+            self.update_attributes(resource, resource_object["attributes"])
 
         # Update the relationships
         if "relationships" in resource_object:
             rels_object = resource_object["relationships"]
             for rel_name, rel_object in rels_object.items():
-                try:
-                    yield from self.update_relationship(db, resource, rel_name, rel_object)
-                except errors.Error as err:
-                    error_list.append(err)
-                except errors.ErrorList as err:
-                    error_list.extend(err)
-
-        if error_list:
-            raise error_list
+                yield from self.update_relationship(db, resource, rel_name, rel_object)
         return None
 
     @asyncio.coroutine
