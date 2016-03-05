@@ -333,11 +333,29 @@ class ReadOnlyAttribute(Forbidden):
     Raised, if an attribute value can not be changed.
     """
 
+    def __init__(self, typename, attr_name, **kargs):
+        self.typename = typename
+        self.attr_name = attr_name
+
+        detail = "The attribute '{}.{}' is read only."\
+            .format(typename, attr_name)
+        super().__init__(detail=detail, **kargs)
+        return None
+
 
 class ReadOnlyRelationship(Forbidden):
     """
     Raised, if the value of a relationship can not be modified.
     """
+
+    def __init__(self, typename, rel_name, **kargs):
+        self.typename = typename
+        self.rel_name
+
+        detail = "The relationship '{}.{}' is read only."\
+            .format(typename, rel_name)
+        super().__init__(detail=detail, **kargs)
+        return None
 
 
 class UnsortableField(BadRequest):
