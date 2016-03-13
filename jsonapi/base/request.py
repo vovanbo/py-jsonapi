@@ -25,9 +25,13 @@
 """
 jsonapi.base.request
 ====================
+
+A class for representing HTTP requests. It helps to get some query arguments,
+which are defined in the JSONapi specification.
 """
 
 # std
+import json
 import logging
 import re
 import urllib.parse
@@ -36,7 +40,7 @@ import urllib.parse
 from cached_property import cached_property
 
 # local
-from . import errors
+from .errors import BadRequest
 
 
 LOG = logging.getLogger(__file__)
@@ -55,13 +59,11 @@ class Request(object):
     :arg str method:
     :arg dict headers:
     :arg bytes body:
-    :arg jsonapi.base.api.API api:
-        The api, which handles this request. If None, the api will set the
-        attribute in :meth:`jsonapi.base.api.API.handle_request`.
     """
 
-    def __init__(self, uri, method, headers, body, api=None):
-        self.api = api
+    def __init__(self, uri, method, headers, body):
+        """
+        """
         self.uri = uri
         self.method = method.lower()
         self.headers = {key.lower(): value for key, value in headers.items()}
@@ -70,6 +72,7 @@ class Request(object):
         #: Contains parameters, which are encoded into the URI.
         #: For example a resource uri: ``http://localhost:5000/api/User/1``
         #: contains the id ``{'id': '1'}``
+        #: This attribute is populated by
         #:
         #: :seealso: :meth:`jsonapi.base.api.API.find_handler`
         self.japi_uri_arguments = dict()
@@ -111,52 +114,36 @@ class Request(object):
             media_type, media_parameters = request.content_type
 
         :seealso: :attr:`media_parameters`
-        :seealso: https://www.w3.org/Protocols/rfc1341/4_Content-Type.html
+        :seealso: https://tools.ietf.org/html/rfc7231#section-3.1.1.1
+        .. todo:: Parse the media parameters and return them.
         """
         content_type = self.headers.get("content-type", "")
         type_, *parameters = content_type.split(";")
-
-        for i, parameter in enumerate(parameters):
-            parameter = parameter.split("=", 1)
-            if len(parameter) != 2:
-                detail="Invalid 'Content-Type' parameter '{}'."\
-                    .format(parameter)
-                raise errors.BadRequest(detail=detail)
-            parameters[i] = parameter
-        return (type_, dict(parameters))
+        return (type_, dict())
 
     @cached_property
     def japi_page_number(self):
         """
-        Returns the number of the requested page or None.
+        Returns the number of the requested page or None. The first page
+        has the number 0.
 
         Query parameter: ``page[number]``
 
-        :raises jsonapi.base.errors.BadRequest:
-            If ``page[number]`` is no integer
-        :raises jsonapi.base.errors.BadRequest:
-            If ``page[number]`` is less than 1
+        :raises BadRequest:
+            If ``page[number]`` is not a positive integer
 
         :seealso: http://jsonapi.org/format/#fetching-pagination
         """
         tmp = self.get_query_argument("page[number]")
-
-        # Try to convert it to an integer and make sure it is >= 1.
-        if tmp is not None:
-            try:
-                tmp = int(tmp)
-            except:
-                raise errors.BadRequest(
-                    detail="The 'page[number]' must be an integer.",
-                    source_parameter="page[number]"
-                )
-
-            if tmp < 1:
-                raise errors.BadRequest(
-                    detail="The 'page[number]' must be >= 1.",
-                    source_parameter="page[number]"
-                )
-        return tmp
+        if tmp is None:
+            return None
+        elif tmp.isdigit():
+            return int(tmp)
+        else:
+            raise BadRequest(
+                detail="The 'page[number]' must be a positive integer.",
+                source_parameter="page[number]"
+            )
 
     @cached_property
     def japi_page_size(self):
@@ -165,49 +152,21 @@ class Request(object):
 
         Query parameter: ``page[size]``
 
-        :raises jsonapi.base.errors.BadRequest:
-            If ``page[size]`` is no integer
-        :raises jsonapi.base.errors.BadRequest:
-            If ``page[size]`` is less than 1
+        :raises BadRequest:
+            If ``page[size]`` is not a positive integer greater than 0
 
         :seealso: http://jsonapi.org/format/#fetching-pagination
         """
         tmp = self.get_query_argument("page[size]")
-
-        # Try to convert it to an integer and make sure, it is >= 1.
-        if tmp is not None:
-            try:
-                tmp = int(tmp)
-            except:
-                raise errors.BadRequest(
-                    detail="The 'page[size]' must be an integer.",
-                    source_parameter="page[size]"
-                )
-
-            if tmp < 1:
-                raise errors.BadRequest(
-                    detail="The 'page[size]' must be >= 1.",
-                    source_parameter="page[size]"
-                )
-        return tmp
-
-    @cached_property
-    def japi_page_limit(self):
-        """
-        Returns the limit based on the :attr:`japi_page_size`
-        """
-        return self.japi_page_size if self.japi_paginate else None
-
-    @cached_property
-    def japi_page_offset(self):
-        """
-        Returns the offset based on the :attr:`japi_page_size` and
-        :attr:`japi_page_number`.
-        """
-        if self.japi_paginate:
-            return self.japi_page_size*(self.japi_page_number - 1)
-        else:
+        if tmp is None:
             return None
+        elif tmp.isdigit() and int(tmp) > 0:
+            return int(tmp)
+        else:
+            raise BadRequest(
+                detail="The 'page[size]' must be a positive integer.",
+                source_parameter="page[size]"
+            )
 
     @cached_property
     def japi_paginate(self):
@@ -222,109 +181,51 @@ class Request(object):
             *   :attr:`japi_page_number`
             *   http://jsonapi.org/format/#fetching-pagination
         """
-        return self.japi_page_size is not None \
-            and self.japi_page_number is not None
+        size = self.japi_page_size
+        number = self.japi_page_number
+        if size is None and number is None:
+            return False
+        elif size is not None and number is not None:
+            return True
+        else:
+            raise BadRequest(
+                detail="Pagination requires 'page[size]' and 'page[number]'.",
+                source_parameter="page[]"
+            )
 
     @cached_property
-    def japi_offset(self):
+    def japi_page_limit(self):
         """
-        Return the offset when querying a collection.
-
-        Query parameter: ``offset``
-
-        :raises jsonapi.base.errors.BadRequest:
-            If the offset is not an integer
-        :raises jsonapi.base.errors.BadRequest:
-            If the offset is negative
-        :raises jsonapi.base.errors.BadRequest:
-            If the offset is greater than the page size
+        Returns the *limit* based on the :attr:`japi_page_size`.
         """
-        offset = self.get_query_argument("offset")
-
-        if offset is not None:
-            try:
-                offset = int(offset)
-            except:
-                raise errors.BadRequest(
-                    detail="The 'offset' must be an integer.",
-                    source_parameter="offset"
-                )
-
-            if offset < 0:
-                raise errors.BadRequest(
-                    detail="The 'offset' must be >= 0.",
-                    source_parameter="offset"
-                )
-
-            if self.japi_paginate and offset >= self.japi_page_size:
-                raise errors.BadRequest(
-                    detail="The 'offset' must be less than the 'page[size]'.",
-                    source_parameter="offset"
-                )
-        return offset
+        return self.japi_page_size if self.japi_paginate else None
 
     @cached_property
-    def japi_limit(self):
+    def japi_page_offset(self):
         """
-        Extracts the limit parameter from the url query string and returns it.
-
-        Query parameter: ``limit``
-
-        :raises jsonapi.base.errors.BadRequest:
-            If the limit is not an integer
-        :raises jsonapi.base.errors.BadRequest:
-            If the limit is not >= 0
+        Returns the offset based on the :attr:`japi_page_size` and
+        :attr:`japi_page_number`.
         """
-        limit = self.get_query_argument("limit")
-
-        if limit is None and self.japi_paginate:
-            limit = self.japi_page_size
-        elif limit is not None:
-            try:
-                limit = int(limit)
-            except:
-                raise errors.BadRequest(
-                    detail="The 'limit' must be an integer.",
-                    source_parameter="limit"
-                )
-
-            if limit < 1:
-                raise errors.BadRequest(
-                    detail="The 'limit' must be >= 1.",
-                    source_parameter="limit"
-                )
-        return limit
+        return self.japi_page_size*self.japi_page_number \
+            if self.japi_paginate else None
 
     @cached_property
     def japi_filters(self):
         """
-        Returns a dictionary, which maps field names to the filter rules applied
-        on them.
+        Please note, that the *filter* strategy is not defined by the
+        jsonapi specification and depends on the implementation. If you want to
+        use another filter strategy, feel free to **override** this method.
 
-        A url query may contain these filters (not all of them may be supported
-        by all database adapters):
+        Returns a list, which contains 3-tuples of the structure::
 
-        *   `eq`
-        *   `ne`
-        *   `lt`
-        *   `lte`
-        *   `gt`
-        *   `gte`
-        *   `in`
-        *   `nin`
-        *   `all`
-        *   `size`
-        *   `exists`
-        *   `iexact`
-        *   `contains`
-        *   `icontains`
-        *   `startswith`
-        *   `istartswith`
-        *   `endswith`
-        *   `iendswith`
-        *   `match`
+            (fieldname, filtername, rule)
 
-        .. code-block:: python3
+        Each entry is a string. For example::
+
+            ("name", "startswith", "Homer")
+            ("age", "gt", 25)
+
+        Filter can be applied using the query string::
 
             >>> # /api/User/?filter[name]=endswith:'Simpson'
             >>> request.japi_filters
@@ -338,57 +239,51 @@ class Request(object):
             >>> request.japi_filters
             ... [("email", "startswith", "lisa"), ("age", "lt", 20)]
 
-        :raises jsonapi.base.errors.BadRequest:
-            If a filtername is used, which does not exist.
-        :raises jsonapi.base.errors.BadRequest:
-            If the value of a filter is not a JSON object.
+        The general syntax is::
+
+            "?filter[fieldname]=filtername:rule"
+
+        Where *fieldname* is the name of a relationship or attribute,
+        *filtername* is the name of the filter which should be applied and
+        *rule* is any JSON serializable object.
+
+        :raises BadRequest:
+            If the rule of a filter is not a JSON object.
+        :raises BadRequest:
+            If a filtername contains other characters than [a-z].
         """
+        KEY_RE = re.compile(r"filter\[(?P<field>[A-z0-9_]+)\]")
+        VALUE_RE = re.compile(r"(?P<filtername>[a-z]+):(?P<rule>.*)")
+
         filters = list()
-
-        KEY_RE = re.compile(r"filter\[([A-z0-9_]+)\]")
-
-        # The first group captures the filters, the second captures the value.
-        VALUE_RE = re.compile(
-            r"(eq:|ne:|lt:|lte:|gt:|gte:|in:|nin:|all:|exists:|iexact:"\
-            r"|contains:|icontains:|startswith:|istartswith:|endswith:"\
-            r"|iendswith:)(.*)"
-        )
-
         for key, values in self.query.items():
             key_match = re.fullmatch(KEY_RE, key)
             value_match = re.fullmatch(VALUE_RE, values[0])
 
-            # If the key indicates a filter, but the filtername does not exist,
-            # throw a BadRequest exception.
+            # If the key indicates a filter, but the value is not correct
+            # formatted.
             if key_match and not value_match:
-                filtername = value_match.group(1)
-                filtername = filtername[:-1]
-                raise errors.BadRequest(
-                    detail="The filter '{}' does not exist.".format(filtername),
+                field = key_match.group("field")
+                raise BadRequest(
+                    detail="The filter '{}' is not correct applied.".format(field),
                     source_parameter=key
                 )
+
             # The key indicates a filter and the filternames exists.
             elif key_match and value_match:
                 field = key_match.group(1)
-
-                # Remove the tailing ":" from the filter.
-                filtername = value_match.group(1)
-                filtername = filtername[:-1]
-
-                # The value may be encoded as json.
-                value = value_match.group(2)
+                filtername = value_match.group("filtername")
+                rule = value_match.group("rule")
                 try:
-                    value = self.api.load_json(value)
+                    rule = json.loads(rule)
                 except Exception as err:
                     LOG.debug(err, exc_info=False)
-                    raise errors.BadRequest(
-                        detail="The value of the filter '{}' is not a JSON "\
-                            "object.".format(filtername),
+                    raise BadRequest(
+                        detail="The rule '{}' is not JSON serializable".format(rule),
                         source_parameter=key
                     )
 
-                # Add the filter.
-                filters.append((field, filtername, value))
+                filters.append((field, filtername, rule))
         return filters
 
     @cached_property
@@ -405,10 +300,9 @@ class Request(object):
 
         :seealso: http://jsonapi.org/format/#fetching-sparse-fieldsets
         """
-        fields = dict()
-
         FIELDS_RE = re.compile(r"fields\[([A-z0-9_]+)\]")
 
+        fields = dict()
         for key, value in self.query.items():
             match = re.fullmatch(FIELDS_RE, key)
             if match:
@@ -465,37 +359,3 @@ class Request(object):
             else:
                 sort.append(("+", field))
         return sort
-
-    @cached_property
-    def json(self):
-        """
-        Parses the :attr:`body` and returns the result.
-
-        .. seealso::
-
-            *   :attr:`has_json`
-            *   :meth:`jsonapi.base.api.API.load_json`
-        """
-        try:
-            if not isinstance(self.body, str):
-                text = self.body.decode()
-            else:
-                text = self.body
-
-            json = self.api.load_json(text)
-        except (UnicodeDecodeError, ValueError) as err:
-            LOG.debug(err, exc_info=False)
-            json = None
-            self.has_json = False
-        else:
-            self.has_json = True
-        return json
-
-    @cached_property
-    def has_json(self):
-        """
-        Returns True, if the body contains a json document.
-        """
-        # Parse the body (This will also set *has_json*)
-        self.json
-        return self.has_json
