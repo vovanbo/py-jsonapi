@@ -32,6 +32,7 @@ http://jsonapi.org/format/#errors
 
 # std
 from collections import OrderedDict
+import json
 
 # third party
 from cached_property import cached_property
@@ -39,23 +40,43 @@ from cached_property import cached_property
 
 __all__ = [
     "Error",
+    "ErrorList",
     "error_to_response",
 
-    "InternalServerError",
+    # 4xx errors
     "BadRequest",
+    "Unauthorized",
     "Forbidden",
     "NotFound",
     "MethodNotAllowed",
     "NotAcceptable",
     "Conflict",
+    "Gone",
+    "PreConditionFailed",
     "UnsupportedMediaType",
+    "ImATeapot",
+    "UnprocessableEntity",
+    "Locked",
+    "FailedDependency",
+    "TooManyRequests",
 
+    # 5xx errors
+    "InternalServerError",
+    "NotImplemented",
+    "BadGateway",
+    "ServiceUnavailable",
+    "GatewayTimeout",
+    "VariantAlsoNegotiates",
+    "InsufficientStorage",
+    "NotExtended",
+
+    # JSONAPI errors
     "InvalidDocument",
     "UnresolvableIncludePath",
     "ReadOnlyAttribute",
     "ReadOnlyRelationship",
     "UnsortableField",
-    "UnfilterableField",
+    "UnsortableField",
     "RelationshipNotFound",
     "ResourceNotFound"
 ]
@@ -63,11 +84,7 @@ __all__ = [
 
 class Error(Exception):
     """
-    .. hint::
-
-        This class implements the error specification:
-
-        http://jsonapi.org/format/#errors
+    :seealso: http://jsonapi.org/format/#errors
 
     This is the base class for all exceptions thrown by your API. All subclasses
     of this exception are catched by the API and converted into a response.
@@ -99,16 +116,8 @@ class Error(Exception):
     """
 
     def __init__(
-        self,
-        http_status=500,
-        id_=None,
-        about="",
-        code=None,
-        title=None,
-        detail="",
-        source_parameter=None,
-        source_pointer=None,
-        meta=None
+        self, *, http_status=500, id_=None, about="", code=None, title=None,
+        detail="", source_parameter=None, source_pointer=None, meta=None
         ):
         """
         """
@@ -153,7 +162,7 @@ class Error(Exception):
             if self.source_parameter:
                 d["source"]["parameter"] = self.source_parameter
         if self.meta:
-            d["meta"] = meta
+            d["meta"] = self.meta
         return d
 
 
@@ -170,41 +179,63 @@ class ErrorList(Exception):
         return None
 
     def __bool__(self):
-        """
-        """
         return bool(self.errors)
+
+    def __len__(self):
+        return len(self.errors)
+
+    @property
+    def http_status(self):
+        """
+        """
+        if not self.errors:
+            return None
+        elif len(self.errors) == 1:
+            return self.errors[0].http_status
+        elif any(400 <= err.http_status < 500 for err in self.errors):
+            return 400
+        else:
+            return 500
 
     def append(self, error):
         """
+        Appends the :class:`Error` error to the error list.
+
+        :arg Error error:
         """
-        assert isinstance(error, Error)
+        if not isinstance(error, Error):
+            raise TypeError("*error* must be of type Error")
         self.errors.append(error)
-
-        # Invalidate the cache.
-        del self.json
         return None
 
-    def extend(self, error):
+    def extend(self, errors):
         """
+        Appends all errors in *errors* to the list. *errors* must be an
+        :class:`ErrorList` or a sequence of :class:`Error`.
+
+        :arg errors:
         """
-        assert isinstance(error, ErrorList)
-        self.errors.extend(error.errors)
+        if isinstance(errors, ErrorList):
+            self.errors.extend(errors.errors)
+        elif all(isinstance(err, Error) for err in errors):
+            self.errors.extend(errors)
+        else:
+            raise TypeError(
+                "*errors* must be of type ErrorList or a sequence of Error."
+            )
 
-        # Invalidate the cache.
-        del self.json
-        return None
-
-    @cached_property
+    @property
     def json(self):
         """
         Creates the JSONapi error object.
-        http://jsonapi.org/format/#error-objects
+
+        :seealso: http://jsonapi.org/format/#error-objects
         """
-        d = [err.json for err in self.errors]
+        d = [error.json for error in self.errors]
         return d
 
 
-def error_to_response(error, json_dumps):
+def error_to_response(error):
     """
     Converts an :class:`Error` to a :class:`~jsonapi.base.response.Response`.
 
@@ -219,35 +250,36 @@ def error_to_response(error, json_dumps):
 
     from .response import Response
 
-    headers = {
-        "content-type": "application/vnd.api+json"
-    }
-
     if isinstance(error, Error):
-        body = json_dumps({"errors": [error.json]})
+        body = json.dumps({"errors": [error.json]})
     elif isinstance(error, ErrorList):
-        body = json_dumps({"errors": error.json})
+        body = json.dumps({"errors": error.json})
 
     resp = Response(
-        status=error.http_status, headers=headers, body=body
+        status=error.http_status,
+        headers={"content-type": "application/vnd.api+json"},
+        body=body
     )
     return resp
 
 
 # Common http errors
-# ~~~~~~~~~~~~~~~~~~
+# ------------------
 
-class InternalServerError(Error):
-
-    def __init__(self, **kargs):
-        super().__init__(http_status=500, **kargs)
-        return None
-
+# 4xx errors
+# ~~~~~~~~~~
 
 class BadRequest(Error):
 
     def __init__(self, **kargs):
         super().__init__(http_status=400, **kargs)
+        return None
+
+
+class Unauthorized(Error):
+
+    def __init__(self, **kargs):
+        super().__init__(http_status=401, **kargs)
         return None
 
 
@@ -286,6 +318,20 @@ class Conflict(Error):
         return None
 
 
+class Gone(Error):
+
+    def __init__(self, **kargs):
+        super().__init__(http_status=410, **kargs)
+        return None
+
+
+class PreConditionFailed(Error):
+
+    def __init__(self, **kargs):
+        super().__init__(http_status=412, **kargs)
+        return None
+
+
 class UnsupportedMediaType(Error):
 
     def __init__(self, **kargs):
@@ -293,14 +339,108 @@ class UnsupportedMediaType(Error):
         return None
 
 
-# Special errors
-# ~~~~~~~~~~~~~~
+class ImATeapot(Error):
+
+    def __init__(self, **kargs):
+        super().__init__(http_status=418, **kargs)
+        return None
+
+
+class UnprocessableEntity(Error):
+
+    def __init__(self, **kargs):
+        super().__init__(http_status=422, **kargs)
+        return None
+
+
+class Locked(Error):
+
+    def __init__(self, **kargs):
+        super().__init__(http_status=423, **kargs)
+        return None
+
+
+class FailedDependency(Error):
+
+    def __init__(self, **kargs):
+        super().__init__(http_status=424, **kargs)
+        return None
+
+
+class TooManyRequests(Error):
+
+    def __init__(self, **kargs):
+        super().__init__(http_status=429, **kargs)
+        return None
+
+
+# 5xx errors
+# ~~~~~~~~~~
+
+class InternalServerError(Error):
+
+    def __init__(self, **kargs):
+        super().__init__(http_status=500, **kargs)
+        return None
+
+
+class NotImplemented(Error):
+
+    def __init__(self, **kargs):
+        super().__init__(http_status=501, **kargs)
+        return None
+
+
+class BadGateway(Error):
+
+    def __init__(self, **kargs):
+        super().__init__(http_status=502, **kargs)
+        return None
+
+
+class ServiceUnavailable(Error):
+
+    def __init__(self, **kargs):
+        super().__init__(http_status=503, **kargs)
+        return None
+
+
+class GatewayTimeout(Error):
+
+    def __init__(self, **kargs):
+        super().__init__(http_status=504, **kargs)
+        return None
+
+
+class VariantAlsoNegotiates(Error):
+
+    def __init__(self, **kargs):
+        super().__init__(http_status=506, **kargs)
+        return None
+
+
+class InsufficientStorage(Error):
+
+    def __init__(self, **kargs):
+        super().__init__(http_status=507, **kargs)
+        return None
+
+
+class NotExtended(Error):
+
+    def __init__(self, **kargs):
+        super().__init__(http_status=510, **kargs)
+        return None
+
+
+# special JSONAPI errors
+# ----------------------
 
 class InvalidDocument(BadRequest):
     """
     Raised, if the structure of a json document in a request body is invalid.
 
-    Please note, that this does not include semantic errors, like a wrong
+    Please note, that this does not include semantic errors, like an unknown
     typename.
 
     :seealso: http://jsonapi.org/format/#document-structure
@@ -310,21 +450,22 @@ class InvalidDocument(BadRequest):
 
 class UnresolvableIncludePath(BadRequest):
     """
-    Raised, if an include path does not exist.
+    Raised if an include path does not exist. The include path is part
+    of the ``include`` query argument.
 
-    .. seealso::
-
-        *   :attr:`jsonapi.base.request.Request.japi_include`
-        *   :attr:`jsonapi.base.database.Session.fetch_includes`
+    :seealso: http://jsonapi.org/format/#fetching-includes
     """
 
     def __init__(self, include_path, **kargs):
+        if not isinstance(include_path, str):
+            include_path = include_path.join(".")
         self.include_path = include_path
 
-        detail = "The include path '{}' does not exist."\
-            .format(".".join(include_path))
-
-        super().__init__(detail=detail, **kargs)
+        super().__init__(
+            detail="The include path '{}' does not exist.".format(include_path),
+            source_parameter="include",
+            **kargs
+        )
         return None
 
 
@@ -361,6 +502,8 @@ class ReadOnlyRelationship(Forbidden):
 class UnsortableField(BadRequest):
     """
     If a field is used as sort key, but does not support sorting.
+
+    :seealso: http://jsonapi.org/format/#fetching-sorting
     """
 
     def __init__(self, typename, fieldname, **kargs):
@@ -369,7 +512,7 @@ class UnsortableField(BadRequest):
 
         detail = "The field '{}.{}' can not be used for sorting."\
             .format(typename, fieldname)
-        super().__init__(detail=detail, **kargs)
+        super().__init__(detail=detail, source_parameter="sort", **kargs)
         return None
 
 
@@ -377,6 +520,8 @@ class UnfilterableField(BadRequest):
     """
     If a filter should be used on a field, which does not support the
     filter.
+
+    :seealso: http://jsonapi.org/format/#fetching-filtering
     """
 
     def __init__(self, typename, filtername, fieldname, **kargs):
@@ -413,7 +558,7 @@ class ResourceNotFound(NotFound):
     def __init__(self, identifier, **kargs):
         self.identifier = identifier
 
-        detail = "The resource (type={}, id={}) does not exist."\
+        detail = "The resource (type='{}', id='{}') does not exist."\
             .format(*identifier)
         super().__init__(detail=detail, **kargs)
         return None
