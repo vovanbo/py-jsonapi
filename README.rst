@@ -41,8 +41,8 @@ First of all, here is an example, when you use the sqlalchemy extension:
 That's it. The sqlalchemy extension implements everything else.
 
 If you don't want to use an extension, you can use the *base*
-descriptors. Here is a code snippet, which should give you an impression how
-writing an API with *py-jsonapi* works:
+descriptors. Here is a code snippet, which should give you an impression of
+*py-jsonapi*:
 
 .. code-block:: python3
 
@@ -114,7 +114,7 @@ a *blog* with *py-jsonapi*.
 Changelog
 ---------
 
-Take a look at the `Changelog <./CHANGELOG.rst>` to find out, what has changed
+Take a look at the `Changelog <./CHANGELOG.rst>`_ to find out, what has changed
 in the last versions.
 
 I also explain, why I made huge changes between the *0.0.0b0* beta version
