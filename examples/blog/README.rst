@@ -1,4 +1,5 @@
-# README
+README
+======
 
 This example is a simple blog with onyl two models:
 
