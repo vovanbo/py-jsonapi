@@ -117,9 +117,6 @@ Changelog
 Take a look at the `Changelog <./CHANGELOG.rst>`_ to find out, what has changed
 in the last versions.
 
-I also explain, why I made huge changes between the *0.0.0b0* beta version
-and the *1.0.0b0* beta version.
-
 
 Docs
 ----
