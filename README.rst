@@ -9,10 +9,10 @@ This library is a toolkit for building a http://jsonapi.org/ compliant API.
 There are extensions for many web frameworks and database drivers:
 
 *   `flask <https://github.com/benediktschmitt/py-jsonapi-flask>`__
-*   `tornado <https://github.com/benediktschmitt/py-jsonapi-tornado`__
-*   `sqlalchemy <https://github.com/benediktschmitt/py-jsonapi-sqlalchemy`__
-*   `mongoengine <https://github.com/benediktschmitt/py-jsonapi-mongoengine`__
-*   `motorengine <https://github.com/benediktschmitt/py-jsonapi-motorengine`__
+*   `tornado <https://github.com/benediktschmitt/py-jsonapi-tornado>`__
+*   `sqlalchemy <https://github.com/benediktschmitt/py-jsonapi-sqlalchemy>`__
+*   `mongoengine <https://github.com/benediktschmitt/py-jsonapi-mongoengine>`__
+*   `motorengine <https://github.com/benediktschmitt/py-jsonapi-motorengine>`__
 
 Furthermore, it can be extended to work with **all web frameworks and database
 engines**. You can use **blocking and asynchronous** code.
