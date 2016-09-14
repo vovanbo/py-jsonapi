@@ -137,7 +137,7 @@ class BoundToOneRelationship(BoundRelationship):
         # remote_id is an ID tuple
         elif isinstance(remote_id, tuple):
             remote_typename, remote_id = remote_id
-            remote_type = self.api.get_type(remote_typename)
+            remote_type = self.type.api.get_type(remote_typename)
             remote_resource = remote_type.get_resource(
                 remote_id, include, request
             )

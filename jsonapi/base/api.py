@@ -141,7 +141,7 @@ class API(object):
         indent = 4 if self.debug else None
         default = bson.json_util.default if bson else None
         sort_keys = self.debug
-        return json.dumps(obj, indent=indent, default=default, sort_key=sort_keys)
+        return json.dumps(obj, indent=indent, default=default, sort_keys=sort_keys)
 
     def load_json(self, obj):
         """
@@ -215,9 +215,9 @@ class API(object):
         assert type.typename not in self._types
 
         uri = self.uri + "/" + type.typename
-        schema.init_api(self, uri)
+        type.init_api(self, uri)
         self._types[type.typename] = type
-        self._resource_class_to_type[type.typename] = type
+        self._resource_class_to_type[type.resource_class] = type
 
         # Add the routes
         # collection endpoint
@@ -230,7 +230,7 @@ class API(object):
         resource_handler = kargs["ResourceHandler"](self, type)
         self._routes.append((resource_re, resource_handler))
 
-        for relname, rel in schema.relationships.items():
+        for relname, rel in type.relationships.items():
             # relationship endpoint
             if rel.to_one:
                 relationship_handler = kargs["ToOneRelationshipHandler"](self, type, relname)
@@ -450,7 +450,7 @@ class API(object):
         """
         # Group the ids by their typename.
         ids_by_typename = defaultdict(set)
-        for (typename, id_) in ids.items():
+        for typename, id_ in ids:
             ids_by_typename[typename].add(id_)
 
         # Load the ids.
@@ -510,12 +510,12 @@ class API(object):
         # Fetch all related resources, one path after another.
         included_resources = dict()
         for path in include:
-            resources = resources
+            resources = root_resources
             type_ = root_type
             for name in path:
-                # Get the ids and related resources
+                # Get all related resources
                 rel = type_.relationships[name]
-                related_ids, related_resources = self._include_helper_related(
+                related_resources = self._include_helper_related(
                     rel, resources, request
                 )
 
@@ -523,26 +523,12 @@ class API(object):
                 # has already been loaded.
                 included_resources.update(related_resources)
 
-                # We can check if some resources in *related_ids* have
-                # already been loaded.
-                related_resources.update({
-                    related_id: included_resources.get(related_id)\
-                    for related_id in related_ids\
-                    if related_id in included_resources
-                })
-                related_ids = related_ids - related_resources.keys()
-
-                # Load the resources, for which only the id is currently known.
-                related_resources.update(
-                    self.get_resources(related_ids, request)
-                )
-
                 # Prepare the next iteration (the next relationship)
                 resources = related_resources
                 type_ = rel.remote_type
         return list(included_resources.values())
 
-    def _include_helper_related(self, rel, resources):
+    def _include_helper_related(self, rel, resources, request):
         """
         Returns a tuple ``(ids, resources)``, where *ids* is a set of
         identifier tuples and *resources* is a *dict()* of related resources.
@@ -550,23 +536,17 @@ class API(object):
         *ids* and *resources* combined represent all resources, which are in the
         relationship *rel* of all *resources*.
         """
-        ids = set()
-        resources = dict()
-        for resource in resources:
-            related = rel.get(resource, request, required=True)
-
-            # One resource identifier
-            if rel.to_one and isinstance(related, tuple):
-                ids.add(related)
-            # One resource instance
-            elif rel.to_one and rel is not None:
-                resources[self.ensure_identifier(related)] = related
-            # Many resource identifiers
-            elif rel.to_many and related and isinstance(related[0], tuple):
-                ids.update(related)
-            # Many resource instances
-            elif rel.to_many and related:
-                resources.update({
+        if rel.to_one:
+            objects = dict()
+            for resource in resources:
+                related = rel.related(resource, None, request)
+                if related is not None:
+                    objects[self.ensure_identifier(related)] = related
+        else:
+            objects = dict()
+            for resource in resources:
+                related, total_number = rel.related(resource, dict(), request)
+                objects.update({
                     self.ensure_identifier(item): item for item in related
                 })
-        return (ids, resources)
+        return objects

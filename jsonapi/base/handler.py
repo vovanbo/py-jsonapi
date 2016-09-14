@@ -298,7 +298,7 @@ class RelationshipHandler(Handler):
     """
 
     def __init__(self, api, type_, relname):
-        assert relname in schema.relationships
+        assert relname in type_.relationships
 
         super().__init__(api=api, type_=type_)
         self.relname = relname
@@ -497,7 +497,7 @@ class ToManyRelatedHandler(RelatedHandler):
         :seealso: http://jsonapi.org/format/#fetching-includes
         """
         # Get the resource
-        relatives, total_number = self.type.get_relatives(
+        relatives, total_number = self.type.get_related(
             self.relname, request.japi_uri_arguments["id"],
             query_params={
                 "filters": request.japi_filters,

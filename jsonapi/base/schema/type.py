@@ -172,7 +172,7 @@ class TypeMeta(type):
             setattr(instance, attr.key, bound)
 
         instance.relationships = dict()
-        for name, rel in cls.attributes.items():
+        for name, rel in cls.relationships.items():
             bound = rel.bind(instance)
             instance.relationships[name] = bound
             setattr(instance, rel.key, bound)
@@ -186,7 +186,7 @@ class TypeMeta(type):
         instance.meta = dict()
         for name, meta in cls.meta.items():
             bound = meta.bind(instance)
-            instance.meta[name] = meta
+            instance.meta[name] = bound
             setattr(instance, meta.key, bound)
 
         instance.fields = dict()
@@ -290,7 +290,7 @@ class Type(metaclass=TypeMeta):
 
         :seealso: http://jsonapi.org/format/#document-resource-object-attributes
         """
-        fields = self.request.japi_fields.get(self.typename)
+        fields = request.japi_fields.get(self.typename)
 
         d = OrderedDict()
         for name, attr in self.attributes.items():
@@ -310,14 +310,14 @@ class Type(metaclass=TypeMeta):
 
         :seealso: http://jsonapi.org/format/#document-resource-object-relationships
         """
-        fields = self.request.japi_fields.get(self.typename)
+        fields = request.japi_fields.get(self.typename)
 
         d = OrderedDict()
         for name in self.relationships:
             if fields is None or name in fields:
                 is_required = require_data is not None and name in require_data
                 d[name] = self.serialize_relationship(
-                    relname, resource, require_data=is_required, request=request
+                    name, resource, require_data=is_required, request=request
                 )
         return d
 
@@ -345,14 +345,14 @@ class Type(metaclass=TypeMeta):
         # links
         links = OrderedDict()
         for name, link in rel.links.items():
-            links[name] = link(resource)
+            links[name] = link(resource, request)
         d["links"] = links
         assert "self" in links or "related" in links
 
         # meta
         meta = OrderedDict()
-        for name, meta in rel.meta.items():
-            meta[name] = meta(resource)
+        for name, meta_func in rel.meta.items():
+            meta[name] = meta_func(resource, request)
         if meta:
             d["meta"] = meta
 
@@ -360,7 +360,7 @@ class Type(metaclass=TypeMeta):
         if rel.to_one:
             # *data* can be None, a resource, a resource identifier or
             # RelationshipNotLoaded
-            data = rel.get(resource, required=require_data)
+            data = rel.get(resource, request, required=require_data)
             assert (not require_data) or (data != RelationshipNotLoaded)
             if data is None:
                 d["data"] = None
@@ -369,7 +369,7 @@ class Type(metaclass=TypeMeta):
         else:
             # *data* is either RelationshipNotLoaded, a list of resources
             # or a list of resource identifiers
-            data = rel.get(resource, required=require_data)
+            data = rel.get(resource, request, required=require_data)
             assert (not require_data) or (data != RelationshipNotLoaded)
             if data != RelationshipNotLoaded:
                 d["data"] = [
@@ -601,7 +601,7 @@ class Type(metaclass=TypeMeta):
                 if filters or limit:
                     rebased_include = None
                 else:
-                    rebase_include = utilities.rebase_include(relname, include)
+                    rebased_include = utilities.rebase_include(relname, include)
 
                 resource = self.get_resource(resource, rebased_include, request)
 

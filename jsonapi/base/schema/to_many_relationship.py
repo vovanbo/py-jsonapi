@@ -31,6 +31,7 @@ jsonapi.base.schema.to_many_relationship
 from .relationship import (
     Relationship, BoundRelationship, RelationshipNotLoaded
 )
+from ..errors import BadRequest
 
 
 __all__ = [
@@ -230,15 +231,15 @@ class BoundToManyRelationship(BoundRelationship):
         The default implementation uses the *getter* and the remote *Type*
         to load the related resources. It does not support sorting or filtering.
         """
-        if "filter" in query_params:
-            raise errors.BadRequest(
+        if query_params.get("filter"):
+            raise BadRequest(
                 detail="The {}.{} collection can not be filtered."\
-                    .format(self.schema.typename, self.name)
+                    .format(self.type.typename, self.prop.name)
             )
-        if "order" in query_params:
-            raise errors.BadRequest(
+        if query_params.get("order"):
+            raise BadRequest(
                 detail="The {}.{} collection can not be sorted."\
-                    .format(self.schema.typename, self.name)
+                    .format(self.type.typename, self.prop.name)
             )
 
         # Get the ids (or resource instances) of all relatives
@@ -249,7 +250,7 @@ class BoundToManyRelationship(BoundRelationship):
         offset = query_params.get("offset", 0)
 
         limit = query_params.get("limit")
-        limit = limit + offset if limit is not None else -1
+        limit = limit + offset if limit is not None else len(relatives)
 
         total_number = len(relatives)
         relatives = relatives[offset:limit]

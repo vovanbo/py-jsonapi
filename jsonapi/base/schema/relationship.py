@@ -27,6 +27,9 @@ jsonapi.base.schema.relationship
 ================================
 """
 
+# std
+from types import MethodType
+
 # third party
 from cached_property import cached_property
 import warnings
@@ -105,7 +108,7 @@ class Relationship(WriteableProperty):
         #: All member of the relationship *meta* object.
         #:
         #: A new member can be added with the :meth:`meta` decorator.
-        self.meta = dict()
+        self.meta_ = dict()
         return None
 
     def related(self, frelated):
@@ -119,9 +122,9 @@ class Relationship(WriteableProperty):
         """
         Adds a new :class:`Link` to the relationship.
         """
-        warnings.warning(
+        warnings.warn(
             "The behaviour for adding links to a relationship may change in "\
-            "the future.", warnings.FutureWarning
+            "the future.", FutureWarning
         )
         self.links[flink.__name__] = flink
         return flink
@@ -130,11 +133,11 @@ class Relationship(WriteableProperty):
         """
         Adds a member to the *meta* object of the relationship.
         """
-        warnings.warning(
+        warnings.warn(
             "The behaviour for adding meta information to a relationship may "\
-            "change in the future.", warnings.FutureWarning
+            "change in the future.", FutureWarning
         )
-        self.meta[fmeta.__name__] = fmeta
+        self.meta_[fmeta.__name__] = fmeta
         return fmeta
 
 
@@ -144,7 +147,7 @@ class BoundRelationship(BoundWriteableProperty):
     """
 
     def __init__(self, rel, type_):
-        super().__init__(prop=rel, type_=type)
+        super().__init__(prop=rel, type_=type_)
 
         #: True, if this is a *to-one* relationship.
         self.to_one = self.prop.to_one
@@ -162,28 +165,31 @@ class BoundRelationship(BoundWriteableProperty):
         # Bind the links and add the links, which are defined by the JSON API
         # specification.
         self.links = {
-            name: MethodType(link) for name, link in self.prop.links.items()
+            name: MethodType(link, self.type)\
+            for name, link in self.prop.links.items()
         }
         self.links["self"] = self._link_self
         self.links["related"] = self._link_related
 
         # Bind the meta members
         self.meta = {
-            name: MethodType(meta) for name, meta in self.prop.meta.items()
+            name: MethodType(meta, self.type)\
+            for name, meta in self.prop.meta_.items()
         }
         return None
 
-    def _link_self(self, resource):
+    def _link_self(self, resource, request):
         """
         The link for the relationship itself. This links allos the client to
         manipulate the relationship directly.
 
         :seealso: http://jsonapi.org/format/#document-resource-object-relationships
         """
-        resource_id = self.type.id.get(resource)
-        return self.type.uri + "/" + resource_id + "/relationships/" + self.name
 
-    def _link_related(self, resource):
+        resource_id = self.type.id.get(resource)
+        return self.type.uri + "/" + resource_id + "/relationships/" + self.prop.name
+
+    def _link_related(self, resource, request):
         """
         The link provides access to the resource objects linked in the
         relationship.
@@ -191,7 +197,7 @@ class BoundRelationship(BoundWriteableProperty):
         :seealso: http://jsonapi.org/format/#document-resource-object-related-resource-links
         """
         resource_id = self.type.id.get(resource)
-        return self.type.uri + "/" + resource_id + "/" + self.name
+        return self.type.uri + "/" + resource_id + "/" + self.prop.name
 
     @cached_property
     def remote_type(self):
@@ -202,10 +208,10 @@ class BoundRelationship(BoundWriteableProperty):
 
         # We allow the *remote_type* on property to be a callable, which returns
         # the remote typename, type or resource class.
-        if callable(self.prop.remote_type):
-            remote_type = self.prop.remote_type()
+        if callable(self.prop._remote_type):
+            remote_type = self.prop._remote_type()
         else:
-            remote_type = self.prop.remote_type
+            remote_type = self.prop._remote_type
         return self.type.api.get_type(remote_type)
 
     @cached_property
