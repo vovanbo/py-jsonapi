@@ -26,12 +26,13 @@
 jsonapi.base.api
 ================
 
-The API application. It handles all requests and knows all available resource
-types.
+The API knows all supported types and is able to handle a JSON API request.
+By overriding the :meth:`API.handle_request` method, it can be easily integrated
+in other web frameworks.
 """
 
 # std
-from collections import OrderedDict
+from collections import defaultdict
 import json
 import logging
 import re
@@ -48,11 +49,9 @@ except ImportError:
 from .. import version
 from . import errors
 from . import handler
-from . import serializer
 
 
 __all__ = [
-    "build_uris",
     "API"
 ]
 
@@ -60,404 +59,514 @@ __all__ = [
 LOG = logging.getLogger(__file__)
 
 
+# We only need the id of this list.
 ARG_DEFAULT = []
-
-
-def build_uris(base_uri):
-    """
-    Returns a dictionary with the uri re(s) for each endpoint type (collection,
-    resource, related and relationships).
-
-    :arg str base_uri:
-    """
-    base_url = base_uri.rstrip("/")
-
-    collection = base_url + "/(?P<type>[A-z][A-z0-9]*)"
-    resource = collection + "/(?P<id>[A-z0-9]+)"
-    relationships = resource + "/relationships/(?P<relname>[A-z][A-z0-9]*)"
-    related = resource + "/(?P<relname>[A-z][A-z0-9]*)"
-
-    # Make the rules insensitive against a trailing "/"
-    collection = re.compile(collection + "/?")
-    resource = re.compile(resource + "/?")
-    relationships = re.compile(relationships + "/?")
-    related = re.compile(related + "/?")
-
-    return {
-        "collection": collection, "resource": resource,
-        "relationships": relationships, "related": related
-    }
 
 
 class API(object):
     """
     This class is responsible for the request dispatching. It knows all
-    resource classes, typenames, serializers and database adapter.
+    resource classes, schemas and api endpoints.
 
     :arg str uri:
         The root uri of the whole API.
-    :arg jsonapi.base.database.Database db:
-        The database adapter we use to load resources
     :arg bool debug:
         If true, exceptions are not catched and the API is more verbose.
     :arg dict settings:
-        A dictionary containing settings, which may be used by extensions.
+        A dictionary containing settings, which can be used by extensions.
     """
 
-    def __init__(self, uri, db, debug=False, settings=None):
+    def __init__(self, uri, debug=True, settings=None):
         """
         """
         # True, if in debug mode.
         self._debug = debug
 
         self._uri = uri.rstrip("/")
-        self._parsed_uri = urllib.parse.urlparse(self.uri)
+        self._parsed_uri = urllib.parse.urlparse(self._uri)
 
-        # List of tuples: `(uri_regex, handler_type)`
-        self._routes = list()
-        self._create_routes()
-
-        #: A dictionary, containing settings for extensions, the handlers, ...
+        #: A dictionary, which can be used to store configuration values
+        #: or data for extensions.
         self.settings = settings or dict()
         assert isinstance(self.settings, dict)
 
-        # resource class to typename
-        self._typenames = dict()
+        # typename -> type
+        self._types = dict()
 
-        # typename to ...
-        self._schemas = dict()
-        self._resource_classes = dict()
-        self._serializers = dict()
-        self._unserializers = dict()
+        # resource class -> type
+        self._resource_class_to_type = dict()
 
-        # The database adapter we use to load, save and delete resources.
-        self._db = db
-        db.init_api(self)
+        # Typename to handler
+        #
+        # TODO: Make the routing more efficient by using the url structure.
+        self._routes = list()
 
         #: The global jsonapi object, which is added to each response.
         #:
-        #: You are free to add meta information in the
-        #: ``jsonapi_object["meta"]`` dictionary.
+        #: You can add meta information to the ``jsonapi_object["meta"]``
+        #: dictionary if you want.
         #:
         #: :seealso: http://jsonapi.org/format/#document-jsonapi-object
-        self.jsonapi_object = OrderedDict()
+        self.jsonapi_object = dict()
         self.jsonapi_object["version"] = version.jsonapi_version
-        self.jsonapi_object["meta"] = OrderedDict()
+        self.jsonapi_object["meta"] = dict()
         self.jsonapi_object["meta"]["py-jsonapi-version"] = version.version
         return None
 
     @property
     def debug(self):
         """
-        True, if the API is in debug mode.
+        When *debug* is *True*, the api is more verbose and exceptions are
+        not catched.
 
-        This value **can be overridden** in subclasses to mimic the behaviour of
-        the parent web framework.
+        This property *can be overridden* in subclasses to mimic the settings
+        of the parent framework.
         """
         return self._debug
 
-    @property
-    def database(self):
-        """
-        :rtype: jsonapi.base.database.Database
-        :returns:
-            The database the API uses to load, save and delete resources.
-        """
-        return self._db
-
-    def _create_routes(self):
-        """
-        Builds the regular expressions, which match the different endpoint
-        types (collection, resource, related, relationships, ...) and adds
-        them to :attr:`_routes`.
-
-        You may **override** this method, if you want to use other handlers
-        in your API.
-        """
-        uris = build_uris(self._uri)
-        self._routes.extend([
-            (uris["collection"], handler.CollectionHandler),
-            (uris["related"], handler.RelatedHandler),
-            (uris["resource"], handler.ResourceHandler),
-            (uris["relationships"], handler.RelationshipHandler)
-        ])
+    @debug.setter
+    def debug(self, debug):
+        self.debug = bool(debug)
         return None
 
-
-    def get_resource_class(self, typename, default=ARG_DEFAULT):
+    def dump_json(self, obj):
         """
-        Returns the resource class associated with the *typename*.
+        Serializes the Python object *obj* to a JSON string.
 
-        :arg str typename:
-            The typename of the resource class
-        :arg default:
-            A fallback value, if the typename does not exist.
-        :raises KeyError:
-            If the typename does not exist and no default argument is given.
-        """
-        if default is ARG_DEFAULT:
-            return self._resource_classes[typename]
-        else:
-            return self._resource_classes.get(typename, default)
+        The default implementation uses Python's :mod:`json` module with some
+        features from :mod:`bson` (if it is available).
 
-    def get_schema(self, typename, default=ARG_DEFAULT):
+        You *can* override this method.
         """
-        Returns the JSONapi schema which represents the structure of the
-        resource type with the given typename.
+        indent = 4 if self.debug else None
+        default = bson.json_util.default if bson else None
+        sort_keys = self.debug
+        return json.dumps(obj, indent=indent, default=default, sort_key=sort_keys)
 
-        :arg str typename:
-        :arg default:
-            A fallback value, if the typename does not exist.
-        :raises KeyError:
-            If the typename is not associated with a schema and no default
-            argument is given.
-        :rtype: jsonapi.base.schema.Schema
+    def load_json(self, obj):
         """
-        if default is ARG_DEFAULT:
-            return self._schemas[typename]
-        else:
-            return self._schemas.get(typename, default)
+        Decodes the JSON string *obj* and returns a corresponding Python object.
 
-    def get_serializer(self, typename, default=ARG_DEFAULT):
-        """
-        Returns the serializer used to serialize types of *typename*.
+        The default implementation uses Python's :mod:`json` module with some
+        features from :mod:`bson` (if available).
 
-        :arg str typename:
-        :arg default:
-            A fallback value, if the typename does not exist.
-        :raises KeyError:
-            If the typename does not exist and no default argument is given.
+        You *can* override this method.
         """
-        if default is ARG_DEFAULT:
-            return self._serializers[typename]
-        else:
-            return self._serializers.get(typename, default)
+        default = bson.json_util.object_hook if bson else None
+        return json.loads(obj, object_hook=default)
 
-    def get_unserializer(self, typename, default=ARG_DEFAULT):
+    def get_type(self, o, default=ARG_DEFAULT):
         """
-        Returns the unserializer used to unserialize types of *typename*.
-
-        :arg str typename:
-        :arg default:
-            A fallback value, if the typename does not exist.
-        :raises KeyError:
-            If the typename does not exist and no default argument is given.
-        """
-        if default is ARG_DEFAULT:
-            return self._unserializers[typename]
-        else:
-            return self._unserializers.get(typename, default)
-
-    def get_typename(self, o, default=ARG_DEFAULT):
-        """
-        Returns the typename of the object *o*.
+        Returns the :class:`~jsonapi.base.schema.type.Type` associated with *o*.
+        *o* must be either a typename, a resource class or resource object.
 
         :arg o:
-            A resource class or a resource
+            A typename, resource object or a resource class
         :arg default:
-            A fallback value, if the typename can not be retrieved.
+            A fallback value, if the *Type* for *o* can not be determined.
         :raises KeyError:
-            If the resource type of *o* is not known to the API and no default
+            If the typename is not associated with a *Type* and no default
             argument is given.
+        :rtype: jsonapi.base.schema.type.Type
         """
-        typename = self._typenames.get(o) \
-            or self._typenames.get(type(o)) \
-            or default
-
-        if typename is ARG_DEFAULT:
-            raise KeyError("The type of *o* is not known to the API.")
-        return typename
+        type_ = self._types.get(o)\
+            or self._resource_class_to_type.get(o)\
+            or self._resource_class_to_type.get(type(o))
+        if type_ is not None:
+            return type_
+        if default is not ARG_DEFAULT:
+            return default
+        raise KeyError()
 
     def get_typenames(self):
         """
         :rtype: list
-        :returns:
-            A list with all typenames known to the API.
+        :returns: A list with all typenames known to the API.
         """
-        return list(self._typenames.values())
+        return list(self._types.keys())
 
     def has_type(self, typename):
         """
-        Returns True, if the api has a type with the given name and False
-        otherwise.
-
         :arg str typename:
+        :rtype: bool
+        :returns:
+            True, if the API has a type with the name *typename* and False
+            otherwise.
         """
-        return typename in self._schemas
+        return typename in self._types
 
-
-    def dump_json(self, d):
+    def add_type(self, type, **kargs):
         """
-        Encodes the object *d* as JSON string.
+        Adds the *type* to the API. This method will call
+        :meth:`~jsonapi.base.schema.type.Type.init_api` to bind the *type*
+        to the API.
 
-        This method *can be overridden* if you want to use your own json
-        serializer.
-
-        The default implementation uses the :mod:`json` module of the standard
-        library and (if available) the :mod:`bson` json utils.
-
-        :arg d:
-        :rtype: str
+        :type type: ~jsonapi.base.schema.type.Type
+        :arg type: A *Type* instance
         """
-        indent = 1 if self.debug else None
-        if bson:
-            return json.dumps(d, default=bson.json_util.default, indent=indent)
-        else:
-            return json.dumps(d, indent=indent)
+        # Our default request handler.
+        kargs.setdefault("CollectionHandler", handler.CollectionHandler)
+        kargs.setdefault("ResourceHandler", handler.ResourceHandler)
+        kargs.setdefault("ToOneRelationshipHandler", handler.ToOneRelationshipHandler)
+        kargs.setdefault("ToManyRelationshipHandler", handler.ToManyRelationshipHandler)
+        kargs.setdefault("ToOneRelatedHandler", handler.ToOneRelatedHandler)
+        kargs.setdefault("ToManyRelatedHandler", handler.ToManyRelatedHandler)
 
-    def load_json(self, s):
-        """
-        Decods the JSON string *s*.
+        assert type.typename not in self._types
 
-        This method *can be overridden* if you want to use your own json
-        serializer.
+        uri = self.uri + "/" + type.typename
+        schema.init_api(self, uri)
+        self._types[type.typename] = type
+        self._resource_class_to_type[type.typename] = type
 
-        The default implementation uses the :mod:`json` module of the standard
-        library and (if available) the :mod:`bson` json utils.
+        # Add the routes
+        # collection endpoint
+        collection_re = re.compile(uri + "/?")
+        collection_handler = kargs["CollectionHandler"](self, type)
+        self._routes.append((collection_re, collection_handler))
 
-        :arg str s:
-        """
-        if bson:
-            return json.loads(s, object_hook=bson.json_util.object_hook)
-        else:
-            return json.loads(s)
+        # resource endpoint
+        resource_re = re.compile(uri + "/(?P<id>[A-z0-9]+)/?")
+        resource_handler = kargs["ResourceHandler"](self, type)
+        self._routes.append((resource_re, resource_handler))
 
+        for relname, rel in schema.relationships.items():
+            # relationship endpoint
+            if rel.to_one:
+                relationship_handler = kargs["ToOneRelationshipHandler"](self, type, relname)
+            else:
+                relationship_handler = kargs["ToManyRelationshipHandler"](self, type, relname)
+            relationship_re = re.compile(uri + "/(?P<id>[A-z0-9]+)/relationships/" + relname + "/?")
+            self._routes.append((relationship_re, relationship_handler))
 
-    @property
-    def uri(self):
-        """
-        The root uri of api, which has been provided in the constructor.
-        """
-        return self._uri
-
-    def reverse_url(self, typename, endpoint, **kargs):
-        """
-        Returns the url for the API endpoint for the type with the given
-        typename.
-
-        .. code-block:: python
-
-            >>> api.reverse_url("User", "collection")
-            "/api/User/"
-
-            >>> api.reverse_url("User", "resource", id="AA-23")
-            "/api/User/AA-23"
-
-            >>> api.reverse_url(
-            ...     "User", "relationship", id="AA-23", relname="articles"
-            ... )
-            "/api/User/AA-23/relationships/articles"
-
-            >>> api.reverse_url(
-            ...     "User", "related", id="AA-23", relname="articles"
-            ... )
-            "/api/User/AA-23/articles"
-
-        :arg str typename:
-        :arg str endpoint:
-            *collection*, *resource*, *related* or *relationship*
-        :arg kargs:
-            Additional arguments needed to build the uri. For example: The
-            resource endpoint also needs the resource's *id*.
-
-        :rtype: str
-
-        :raises ValueError:
-            If the endpoint type does not exist.
-        :raises ValueError:
-            If the typename does not exist.
-        """
-        if not typename in self._serializers:
-            raise ValueError("Unknown typename '{}'".format(typename))
-
-        if endpoint == "collection":
-            return "{}/{}".format(self._uri, typename)
-        elif endpoint == "resource":
-            return "{}/{}/{}".format(self._uri, typename, kargs["id"])
-        elif endpoint == "relationship":
-            return "{}/{}/{}/relationships/{}".format(
-                self._uri, typename, kargs["id"], kargs["relname"]
-            )
-        elif endpoint == "related":
-            return "{}/{}/{}/{}".format(
-                self._uri, typename, kargs["id"], kargs["relname"]
-            )
-        else:
-            raise ValueError("Unknown endpoint type '{}'".format(endpoint))
-
-    def add_type(self, schema, **kargs):
-        """
-        Adds the serializer to the API.
-
-        :arg jsonapi.base.schema.Schema schema:
-        """
-        serializer_ = kargs.get("serializer") or serializer.Serializer(schema)
-        unserializer = kargs.get("unserializer") or serializer.Unserializer(schema)
-        resource_class = schema.resource_class
-
-        self._typenames[schema.resource_class] = schema.typename
-        self._schemas[schema.typename] = schema
-        self._resource_classes[schema.typename] = resource_class
-        self._serializers[schema.typename] = serializer_
-        self._unserializers[schema.typename] = unserializer
-
-        # Add some new keys to the _jsonapi attribute of the resource class.
-        resource_class._jsonapi = getattr(resource_class, "_jsonapi", dict())
-        resource_class._jsonapi.update({
-            "typename": schema.typename,
-            "schema": schema,
-            "serializer": serializer_,
-            "unserializer": unserializer,
-            "api": self
-        })
+            # related endpoint
+            if rel.to_one:
+                related_handler = kargs["ToOneRelatedHandler"](self, type, relname)
+            else:
+                related_handler = kargs["ToManyRelatedHandler"](self, type, relname)
+            related_re = re.compile(uri + "/(?P<id>[A-z0-9]+)/" + relname + "/?")
+            self._routes.append((related_re, related_handler))
         return None
 
-    def _find_handler(self, request):
-        """
-        Parses the :attr:`request.uri` and returns the handler for the requested
-        endpoint.
+    # Utilities
 
-        Arguments decoded in the uri (like the resource id or relationship name)
-        are saved in :attr:`request.japi_uri_arguments`.
-
-        :arg jsonapi.base.request.Request request:
-        :rtype: jsonapi.base.handler.base_handler.BaseHandler:
-        :raises jsonapi.base.errors.NotFound:
-            If the :attr:`request.uri` is not a valid API endpoint.
+    def ensure_identifier_object(self, obj):
         """
-        for uri_re, HandlerType in self._routes:
-            match = uri_re.fullmatch(request.parsed_uri.path)
+        Converts *obj* into an identifier object:
+
+        .. code-block:: python3
+
+            {
+                "type": "people",
+                "id": "42"
+            }
+
+        :arg obj:
+            A two tuple ``(typename, id)``, a resource object or a resource
+            document, which contains the *id* and *type* key
+            ``{"type": ..., "id": ...}``.
+
+        :seealso: http://jsonapi.org/format/#document-resource-identifier-objects
+        """
+        # Identifier tuple
+        if isinstance(obj, tuple):
+            return {"type": obj[0], "id": obj[1]}
+        # JSONapi identifier object
+        elif isinstance(obj, dict):
+            # The dictionary may contain more keys than only *id* and *type*. So
+            # we extract only these two keys.
+            return {"type": obj["type"], "id": obj["id"]}
+        # obj is a resource
+        else:
+            type_ = self.get_type(obj)
+            return {"typename": type_.typename, "id": type_.id.get(obj)}
+
+    def ensure_identifier(self, obj):
+        """
+        Does the same as :meth:`ensure_identifier_object`, but returns the two
+        tuple identifier object instead of the document:
+
+        .. code-block:: python3
+
+            # (typename, id)
+            ("people", "42")
+
+        :arg obj:
+            A two tuple ``(typename, id)``, a resource object or a resource
+            document, which contains the *id* and *type* key
+            ``{"type": ..., "id": ...}``.
+        """
+        if isinstance(obj, tuple):
+            assert len(obj) == 2
+            return obj
+        elif isinstance(obj, dict):
+            return (obj["type"], obj["id"])
+        else:
+            type_ = self.get_type(obj)
+            return (type_.typename, type_.id.get(obj))
+
+    # Handler
+
+    def _get_handler(self, request):
+        """
+        Returns the handler, which is responsible for the request's endpoint.
+        """
+        for uri_pattern, handler in self._routes:
+            match = uri_pattern.fullmatch(request.parsed_uri.path)
             if match:
                 request.japi_uri_arguments.update(match.groupdict())
-                return HandlerType
+                return handler
         raise errors.NotFound()
+
+    def prepare_request(self, request):
+        """
+        Called, before the :meth:`~jsonapi.base.handler.Handler.handle`
+        of the request handler is called.
+
+        You *can* overridde this method to modify the request. (Add some
+        settings, headers, ...).
+        """
+        return None
 
     def handle_request(self, request):
         """
-        Handles the *request* and returns a :class:`Response`.
+        Handles a request and returns a response object.
 
-        :arg jsonapi.base.request.Request request:
-        :rtype: jsonapi.base.response.Response
+        This method should be overridden for integration in other frameworks.
+        It is the **entry point** for all requests handled by this library.
+
+        :type request: ~jsonapi.base.request.Request
+        :arg request: The request, which should be handled.
+
+        :rtype: ~jsonapi.base.request.Response
         """
         assert request.api is None or request.api is self
         request.api = self
 
         try:
-            HandlerType = self._find_handler(request)
-            handler = HandlerType(
-                api=self, db=self._db.session(), request=request
+            self.prepare_request(request)
+            handler = self._get_handler(request)
+            resp = handler.handle(request)
+        except errors.Error as err:
+            if self.debug:
+                raise
+            resp = errors.error_to_response(err, dump_json=self.dump_json)
+        return resp
+
+    # URLs
+
+    @property
+    def uri(self):
+        """
+        The root uri of the api, which has been provided in the constructor.
+        """
+        return self._uri
+
+    def collection_uri(self, resource):
+        """
+        :rtype: str
+        :returns: The uri for the resource's collection
+        """
+        type_ = self.get_type(resource)
+        return type_.uri
+
+    def resource_uri(self, resource):
+        """
+        :rtype: str
+        :returns: The uri for the resource
+        """
+        type_ = self.get_type(resource)
+        resource_id = type_.id.get(resource)
+        return type_.uri + "/" + resource_id
+
+    def relationship_uri(self, resource, relname):
+        """
+        :rtype: str
+        :returns: The uri for the relationship *relname* of the resource
+        """
+        type_ = self.get_type(resource)
+        assert relname in type_.relationships
+        resource_id = type_.id.get(resource)
+        return type_.uri + "/" + resource_id + "/relationships/" + relname
+
+    def related_uri(self, resource, relname):
+        """
+        :rtype: str
+        :returns:
+            The uri for fetching all related resources in the relationship
+            *relname* with the resource.
+        """
+        type_ = self.get_type(resource)
+        assert relname in type_.relationships
+        resource_id = type_.id.get(resource)
+        return type_.uri + "/" + resource_id + "/" + relname
+
+    # Resource serializer
+
+    def serialize(self, resource, request):
+        """
+        Chooses the correct serializer for the *resource* and returns the
+        serialized version of the resource.
+
+        :arg resource:
+            A resource instance, whichs type is known to the API.
+        :arg ~jsonapi.base.request.Request request:
+            The current request context
+
+        :rtype: dict
+        :returns:
+            The serialized version of the *resource*.
+        """
+        type_ = self.get_type(resource)
+        return type_.serialize_resource(resource, request)
+
+    def serialize_many(self, resources, request):
+        """
+        The same as :meth:`serialize`, but for many resources.
+
+        :rtype: list
+        :returns:
+            A list with the serialized versions of all *resources*.
+        """
+        return [self.serialize(resource, request) for resource in resources]
+
+    # Fetching resources
+
+    def get_resources(self, ids, request):
+        """
+        Fetches the resources with the given ids from the database and returns
+        a dictionary, which maps the ids to the actual resource.
+
+        You *can* override this method.
+
+        :arg list ids:
+            A list of identifier tuples
+        :arg ~jsonapi.base.request.Request:
+            The request context
+
+        :rtype: dict
+        :returns:
+            A dictionary, which maps the ids to the resource object.
+        """
+        # Group the ids by their typename.
+        ids_by_typename = defaultdict(set)
+        for (typename, id_) in ids.items():
+            ids_by_typename[typename].add(id_)
+
+        # Load the ids.
+        all_resources = dict()
+        for (typename, ids) in ids_by_typename.items():
+            type_ = self._types[typename]
+            resources = type_.get_resources(ids, include=None, request=request)
+            all_resources.update(resources)
+        return all_resources
+
+    # The include algorithms
+
+    def get_included(self, resources, include, request):
+        """
+        Loads all related resources, which are in the include paths *include*.
+        All of the resources must be of the same type.
+
+        .. code-block:: python3
+
+            # Load all comments, commented articles (comments.article)
+            # and the written articles of *homer* and *lisa*.
+            api.get_included(
+                [homer, lisa],
+                [["comments", "article"], ["articles"]],
+                request
             )
 
-            handler.prepare()
-            handler.handle()
-        except (errors.Error, errors.ErrorList) as err:
-            LOG.debug(err, exc_info=False)
-            if not self.debug:
-                return errors.error_to_response(err, self.dump_json)
-            else:
-                raise
-        except Exception as err:
-            LOG.critical(err, exc_info=True)
-            raise
-        else:
-            return handler.response
+        You *can* override this method.
+
+        :arg list resources:
+            A list of resources of the **same type**
+        :arg list include:
+            A list of include paths, as given by
+            :attr:`~jsonapi.base.request.Request.japi_include`.
+
+        :rtype: list
+        :returns:
+            A list with all resources in *include*.
+
+        :seealso: http://jsonapi.org/format/#fetching-includes
+        """
+        if not resources:
+            return []
+
+        root_resources = resources
+        root_type = self.get_type(resources[0])
+
+        # Check if all include paths exist.
+        for path in include:
+            type_ = root_type
+            for name in path:
+                rel = type_.relationships.get(name)
+                if rel is None:
+                    raise UnresolvableIncludePath(path)
+                type_ = rel.remote_type
+
+        # Fetch all related resources, one path after another.
+        included_resources = dict()
+        for path in include:
+            resources = resources
+            type_ = root_type
+            for name in path:
+                # Get the ids and related resources
+                rel = type_.relationships[name]
+                related_ids, related_resources = self._include_helper_related(
+                    rel, resources, request
+                )
+
+                # Add the related resources, for which the resource instance
+                # has already been loaded.
+                included_resources.update(related_resources)
+
+                # We can check if some resources in *related_ids* have
+                # already been loaded.
+                related_resources.update({
+                    related_id: included_resources.get(related_id)\
+                    for related_id in related_ids\
+                    if related_id in included_resources
+                })
+                related_ids = related_ids - related_resources.keys()
+
+                # Load the resources, for which only the id is currently known.
+                related_resources.update(
+                    self.get_resources(related_ids, request)
+                )
+
+                # Prepare the next iteration (the next relationship)
+                resources = related_resources
+                type_ = rel.remote_type
+        return list(included_resources.values())
+
+    def _include_helper_related(self, rel, resources):
+        """
+        Returns a tuple ``(ids, resources)``, where *ids* is a set of
+        identifier tuples and *resources* is a *dict()* of related resources.
+
+        *ids* and *resources* combined represent all resources, which are in the
+        relationship *rel* of all *resources*.
+        """
+        ids = set()
+        resources = dict()
+        for resource in resources:
+            related = rel.get(resource, request, required=True)
+
+            # One resource identifier
+            if rel.to_one and isinstance(related, tuple):
+                ids.add(related)
+            # One resource instance
+            elif rel.to_one and rel is not None:
+                resources[self.ensure_identifier(related)] = related
+            # Many resource identifiers
+            elif rel.to_many and related and isinstance(related[0], tuple):
+                ids.update(related)
+            # Many resource instances
+            elif rel.to_many and related:
+                resources.update({
+                    self.ensure_identifier(item): item for item in related
+                })
+        return (ids, resources)

@@ -26,16 +26,30 @@
 jsonapi.base.errors
 ===================
 
-This module implements the base class for all JSONapi exceptions:
-http://jsonapi.org/format/#errors
+This module implements the base class for all JSON API exceptions:
+http://jsonapi.org/format/#errors.
+
+We also define frequently used HTTP errors and exceptions, which are
+often used in *py-jsonapi*, like :exc:`ReadOnlyField` or
+:exc:`ResourceNotFound`.
+
+.. todo::
+
+    JSON API allows to set a *source_pointer* in an error, which points
+    to the data, which caused the error. We don't use this feature at the
+    moment, because it is hard to track, where the used data came from
+    and if it is even part of the request.
+
+    We could subclass the JSON data types (int, str, dict, list, float, ...)
+    and give them an additional *source_pointer* attribute by overriding
+    the *json* serializers object hook.
+
+    Or we could work with the json pointers all the time:
+    https://github.com/stefankoegl/python-json-pointer
 """
 
 # std
-from collections import OrderedDict
 import json
-
-# third party
-from cached_property import cached_property
 
 
 __all__ = [
@@ -73,8 +87,7 @@ __all__ = [
     # JSONAPI errors
     "InvalidDocument",
     "UnresolvableIncludePath",
-    "ReadOnlyAttribute",
-    "ReadOnlyRelationship",
+    "ReadOnlyField",
     "UnsortableField",
     "UnsortableField",
     "RelationshipNotFound",
@@ -86,9 +99,9 @@ class Error(Exception):
     """
     :seealso: http://jsonapi.org/format/#errors
 
-    This is the base class for all exceptions thrown by your API. All subclasses
-    of this exception are catched by the API and converted into a response.
-    All other exception will not be catched.
+    This is the base class for all exceptions thrown by the API. All subclasses
+    of this exception are catched and converted into a response.
+    All other exceptions will be replaced by an InternalServerError exception.
 
     :arg int http_status:
         The HTTP status code applicable to this problem.
@@ -136,27 +149,27 @@ class Error(Exception):
         """
         Returns the :attr:`detail` attribute per default.
         """
-        return self.detail
+        return json.dumps(self.json, indent=4, sort_keys=True)
 
-    @cached_property
+    @property
     def json(self):
         """
         The serialized version of this error.
         """
-        d = OrderedDict()
+        d = dict()
         if self.id is not None:
             d["id"] = str(self.id)
         d["status"] = self.http_status
         d["title"] = self.title
         if self.about:
-            d["links"] = OrderedDict()
+            d["links"] = dict()
             d["links"]["about"] = self.about
         if self.code:
             d["code"] = self.code
         if self.detail:
             d["detail"] = self.detail
         if self.source_pointer or self.source_parameter:
-            d["source"] = OrderedDict()
+            d["source"] = dict()
             if self.source_pointer:
                 d["source"]["pointer"] = self.source_pointer
             if self.source_parameter:
@@ -169,7 +182,11 @@ class Error(Exception):
 class ErrorList(Exception):
     """
     Can be used to store a list of exceptions, which occur during the
-    execution of an api request.
+    execution of an api request. All exceptions are then sent back to the
+    client.
+
+    :seealso: http://jsonapi.org/format/#error-objects
+    :seealso: http://jsonapi.org/examples/#error-objects-multiple-errors
     """
 
     def __init__(self, errors=None):
@@ -184,9 +201,13 @@ class ErrorList(Exception):
     def __len__(self):
         return len(self.errors)
 
+    def __str__(self):
+        return json.dumps(self.json, indent=4, sort_keys=True)
+
     @property
     def http_status(self):
         """
+        The most specific http status code, which matches all exceptions.
         """
         if not self.errors:
             return None
@@ -235,25 +256,26 @@ class ErrorList(Exception):
         return d
 
 
-def error_to_response(error):
+def error_to_response(error, dump_json=None):
     """
     Converts an :class:`Error` to a :class:`~jsonapi.base.response.Response`.
 
     :arg Error error:
-    :arg json_dumps:
-        The json serializer, which is used to serialize :attr:`Error.json`
-    :rtype: jsonapi.base.request.Request
+        The error, which is converted into a response.
+    :arg callable dump_json:
+        The json serializer, which is used to serialize the error.
 
-    :seealso: http://jsonapi.org/format/#error-objects
+    :rtype: jsonapi.base.request.Request
     """
     assert isinstance(error, (Error, ErrorList))
 
     from .response import Response
+    dump_json = dump_json or json.dumps
 
     if isinstance(error, Error):
-        body = json.dumps({"errors": [error.json]})
+        body = dump_json({"errors": [error.json]})
     elif isinstance(error, ErrorList):
-        body = json.dumps({"errors": error.json})
+        body = dump_json({"errors": error.json})
 
     resp = Response(
         status=error.http_status,
@@ -444,21 +466,22 @@ class InvalidDocument(BadRequest):
     typename.
 
     :seealso: http://jsonapi.org/format/#document-structure
-    :seealso: :mod:`jsonapi.base.validators`
+    :seealso: :mod:`jsonapi.base.validation`
     """
 
 
 class UnresolvableIncludePath(BadRequest):
     """
     Raised if an include path does not exist. The include path is part
-    of the ``include`` query argument.
+    of the ``include`` query argument. (An include path is invalid, if a
+    relationship mentioned in it is not defined on a resource).
 
     :seealso: http://jsonapi.org/format/#fetching-includes
     """
 
     def __init__(self, include_path, **kargs):
         if not isinstance(include_path, str):
-            include_path = include_path.join(".")
+            include_path = ".".join(include_path)
         self.include_path = include_path
 
         super().__init__(
@@ -469,39 +492,23 @@ class UnresolvableIncludePath(BadRequest):
         return None
 
 
-class ReadOnlyAttribute(Forbidden):
+class ReadOnlyField(Forbidden):
     """
-    Raised, if an attribute value can not be changed.
+    Raised, if a field's value can not be changed.
     """
 
-    def __init__(self, typename, attr_name, **kargs):
+    def __init__(self, typename, fieldname, **kargs):
         self.typename = typename
-        self.attr_name = attr_name
+        self.fieldname = fieldname
 
-        detail = "The attribute '{}.{}' is read only."\
-            .format(typename, attr_name)
-        super().__init__(detail=detail, **kargs)
-        return None
-
-
-class ReadOnlyRelationship(Forbidden):
-    """
-    Raised, if the value of a relationship can not be modified.
-    """
-
-    def __init__(self, typename, rel_name, **kargs):
-        self.typename = typename
-        self.rel_name
-
-        detail = "The relationship '{}.{}' is read only."\
-            .format(typename, rel_name)
+        detail = "The field '{}.{}' is read only.".format(typename, fieldname)
         super().__init__(detail=detail, **kargs)
         return None
 
 
 class UnsortableField(BadRequest):
     """
-    If a field is used as sort key, but does not support sorting.
+    If a field is used as sort key, but sorting is not supported on this field.
 
     :seealso: http://jsonapi.org/format/#fetching-sorting
     """
@@ -524,13 +531,13 @@ class UnfilterableField(BadRequest):
     :seealso: http://jsonapi.org/format/#fetching-filtering
     """
 
-    def __init__(self, typename, filtername, fieldname, **kargs):
+    def __init__(self, typename, fieldname, filtername, **kargs):
         self.typename = typename
-        self.filtername = filtername
         self.fieldname = fieldname
+        self.filtername = filtername
 
-        detail = "The filter '{}' is not supported on the '{}' field of '{}.'"\
-            .format(filtername, fieldname)
+        detail = "The field '{}.{}' does not support the '{}' filter."\
+            .format(typename, filtername, fieldname)
         super().__init__(detail=detail, **kargs)
         return None
 

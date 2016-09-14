@@ -30,87 +30,40 @@ This module contains some helpers, which are frequently needed in different
 modules.
 """
 
-# std
-from collections import OrderedDict
-
-# local
-from .errors import RelationshipNotFound
-
 
 __all__ = [
-    "ensure_identifier_object",
-    "ensure_identifier",
+    "Symbol",
     "collect_identifiers",
-    "relative_identifiers",
+    "rebase_include",
+    "load_relationships_object"
 ]
 
 
-def ensure_identifier_object(obj):
+class Symbol(object):
     """
-    Returns the identifier object for the *resource*:
+    A simple symbol implementation.
 
     .. code-block:: python3
 
-        {
-            "type": "people",
-            "id": "42"
-        }
+        foo = Symbol()
+        assert foo == foo
 
-    The object *obj* can be a two tuple ``(typename, id)``, a resource document
-    which contains the *id* and *type* key ``{"type": ..., "id": ...}`` or
-    a real resource object.
-
-    :arg obj:
+        bar = Symbol()
+        assert bar != foo
     """
-    # Identifier tuple
-    if isinstance(obj, tuple):
-        d = OrderedDict([
-            ("type", obj[0]),
-            ("id", obj[1])
-        ])
-        return d
-    # JSONapi identifier object
-    elif isinstance(obj, dict):
-        # The dictionary may contain more keys than only *id* and *type*. So
-        # we extract only these two keys.
-        d = OrderedDict([
-            ("type", obj["type"]),
-            ("id", obj["id"])
-        ])
-        return d
-    # obj is a resource resource
-    else:
-        schema = obj._jsonapi["schema"]
-        d = OrderedDict([
-            ("typename", schema.typename),
-            ("id", schema.id_attribute.get(obj))
-        ])
-        return d
+
+    def __init__(self, name=""):
+        self.name = name
+        return None
+
+    def __eq__(self, other):
+        return other is self
+
+    def __ne__(self, other):
+        return other is not self
 
 
-def ensure_identifier(obj):
-    """
-    Does the same as :func:`ensure_identifier_object`, but returns the two
-    tuple identifier object instead of the document:
-
-    .. code-block:: python3
-
-        # (typename, id)
-        ("people", "42")
-
-    :arg obj:
-    """
-    if isinstance(obj, tuple):
-        assert len(obj) == 2
-        return obj
-    elif isinstance(obj, dict):
-        return (obj["type"], obj["id"])
-    else:
-        schema = obj._jsonapi["schema"]
-        return (schema.typename, schema.id_attribute.get(obj))
-
-
-def collect_identifiers(d, include_meta=False):
+def collect_identifiers(d, with_data=True, with_meta=False):
     """
     Walks through the document *d* and saves all type identifers. This means,
     that each time a dictionary in *d* contains a *type* and *id* key, this
@@ -133,8 +86,14 @@ def collect_identifiers(d, include_meta=False):
         {("User", "42"), ("Comment", "2"), ("Comment", "3")}
 
     :arg dict d:
-    :arg bool include_meta:
-        If true, we also look for (id, type) keys in the meta objects.
+    :arg bool with_data:
+        If true, we check recursive in all *data* objects for identifiers.
+    :arg bool with_meta:
+        If true, we check recursive in all *meta* objects for identifiers.
+
+    :rtype: set
+    :returns:
+        A set with all found identifier tuples.
     """
     ids = set()
     docs = [d]
@@ -151,32 +110,82 @@ def collect_identifiers(d, include_meta=False):
                 ids.add((d["type"], d["id"]))
 
             for key, value in d.items():
-                if key == "meta" and not include_meta:
+                if key == "meta" and not with_meta:
+                    continue
+                if key == "data" and not with_data:
                     continue
                 if isinstance(value, (dict, list)):
                     docs.append(value)
     return ids
 
 
-def relative_identifiers(relname, resource):
+def rebase_include(new_root, include):
     """
-    Returns a list with the ids of related resources.
+    Adds *new_root* to each include path in *include*.
 
-    :arg str relname:
-        The name of the relationship
-    :arg resource:
+    .. code-block:: python3
 
-    :raises RelationshipNotFound:
+        >>> rebase_include("articles", [["comments"], ["posts"]])
+        [["articles", "comments"], ["articles", "posts"]]
+        >>> rebase_include("articles", [])
+        [["articles"]]
+
+    :arg str new_root:
+        The new root of all include paths in include.
+    :arg list include:
+        A list of include paths.
+
+    :rtype: list
+    :returns:
+        The new list of include paths.
     """
-    schema = resource._jsonapi["schema"]
-    relationship = schema.relationships.get(relname)
-    if relationship is None:
-        raise RelationshipNotFound(schema.typename, relname)
-    elif relationship.to_one:
-        relative = relationship.get(resource)
-        relatives = [relative] if relative else []
+    if not include:
+        rebased = [[new_root]]
     else:
-        relatives = relationship.get(resource)
+        rebased = [[new_root] + path for path in include]
+    return rebased
 
-    relatives = [ensure_identifier(relative) for relative in relatives]
-    return relatives
+
+def load_relationships_object(d, api, request):
+    """
+    Loads the relatives in a relationships object and returns a dictionary,
+    which maps the relationship names to the related resources.
+
+    :arg dict d:
+        A JSON API relationships object
+    :arg ~jsonapi.base.api.API api:
+        An API, which knows all types mentioned in *d*.
+
+    :rtype: dict
+    :returns:
+        A dictionary, mapping the relationship names in *d* to the actual
+        resources in the *data* dictionary of the relationship.
+
+    :seealso: http://jsonapi.org/format/#document-resource-object-relationships
+
+    :todo: Make this function a method of the API object?
+    """
+    ids = collect_identifiers(d, with_data=True, with_meta=False)
+    resources = api.get_resources(ids, request)
+
+    # Map the relationship names to the resources.
+    relationships = dict()
+    for name, value in d.items():
+        # no data object
+        if "data" not in value:
+            pass
+        # to-one relationship (NULL)
+        elif value["data"] is None:
+            relationships[name] = None
+        # to-one relationship (NOT NULL)
+        elif isinstance(value["data"], dict):
+            resource_id = (value["data"]["type"], value["data"]["id"])
+            relationships[name] = resources[resource_id]
+        # to-many relationship
+        else:
+            assert isinstance(value["data"], list)
+            relationships[name] = [
+                resources[(item["type"], item["id"])]\
+                for item in value["data"]
+            ]
+    return relationships

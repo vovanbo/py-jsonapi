@@ -41,7 +41,7 @@ class Response(object):
     :arg dict headers:
         A dictionary containing all headers of the response.
     :arg bytes body:
-        The body of the http response as bytes. This attribute maybe None.
+        The body of the http response as bytes. This attribute may be None.
     :arg file:
         If not None, this is a file like object or a filename.
     """
@@ -52,18 +52,3 @@ class Response(object):
         self.body = body
         self.file = file
         return None
-
-    @property
-    def has_body(self):
-        """
-        Returns true, if the response contains a body (and not a file).
-        """
-        return self.body is not None
-
-    @property
-    def is_file(self):
-        """
-        Returns true, if the response is a file, which must be sent to the
-        client.
-        """
-        return self.file is not None

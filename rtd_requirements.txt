@@ -1,8 +1,4 @@
-# This requirements file is only used by readthedocs.org, so that it can
-# include the flask, sqlalchemy, ... packages without an ImportError.
+# This requirements file is only used by readthedocs.org
 cached_property
-flask
 sqlalchemy
-tornado
-mongoengine
-motorengine
+flask

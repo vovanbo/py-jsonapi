@@ -26,23 +26,19 @@
 jsonapi.base.pagination
 =======================
 
-This module contains only a helper for the pagination feature:
+This module contains a helper for the pagination feature:
 http://jsonapi.org/format/#fetching-pagination
 """
 
 # std
-from collections import OrderedDict
 import urllib.parse
-
-# third party
-from cached_property import cached_property
 
 
 class Pagination(object):
     """
     A helper class for the pagination.
 
-    The fist page has the number *0*.
+    The first page has the number **0**.
 
     :arg str uri:
         The uri to the endpoint which provides a collection
@@ -90,7 +86,7 @@ class Pagination(object):
     def from_request(cls, request, total_resources):
         """
         Shortcut for creating a Pagination object based on a jsonapi
-        :class:`Request`.
+        :class:`~jsonapi.base.request.Request`.
         """
         assert request.japi_paginate
         return cls(
@@ -114,10 +110,10 @@ class Pagination(object):
         )
         return uri
 
-    @cached_property
+    @property
     def json_meta(self):
         """
-        A dictionary, which must be included in the top-level meta object. It
+        A dictionary, which must be included in the top-level *meta object*. It
         contains these keys:
 
         *   *total-pages*
@@ -132,17 +128,18 @@ class Pagination(object):
         *   *page-size*
             The page size
         """
-        d = OrderedDict()
-        d["total-pages"] = self.total_pages
-        d["total-resources"] = self.total_resources
-        d["page"] = self.current_page
-        d["page-size"] = self.page_size
+        d = {
+            "total-pages": self.total_pages,
+            "total-resources": self.total_resources,
+            "page": self.current_page,
+            "page-size": self.page_size
+        }
         return d
 
-    @cached_property
+    @property
     def json_links(self):
         """
-        A dictionary, which must be included in the top-level links object. It
+        A dictionary, which must be included in the top-level *links object*. It
         contains these keys:
 
         *   *self*
@@ -160,10 +157,11 @@ class Pagination(object):
         *   *next*
             The link to the next page (only set, if a next page exists)
         """
-        d = OrderedDict()
-        d["self"] = self.link_self
-        d["first"] = self.link_first
-        d["last"] = self.link_last
+        d = {
+            "self": self.link_self,
+            "first": self.link_first,
+            "last": self.link_last
+        }
         if self.has_prev:
             d["prev"] = self.link_prev
         if self.has_next:

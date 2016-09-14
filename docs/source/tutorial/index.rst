@@ -6,8 +6,7 @@ Tutorial
 
     installation
     blog
-    blog_client
 
 
-We will show you how to install *py-jsonapi* and create a simple blog with
-*flask* and *sqlalchemy*.
+We will show you how to install *py-jsonapi* and how to create a simple blog
+with *flask* and *sqlalchemy*.

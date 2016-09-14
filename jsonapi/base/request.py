@@ -26,12 +26,11 @@
 jsonapi.base.request
 ====================
 
-A class for representing HTTP requests. It helps to get some query arguments,
-which are defined in the JSONapi specification.
+This module contains a class for representing HTTP requests. It helps to get
+and parse the query arguments, which are defined in the JSON API specification.
 """
 
 # std
-import json
 import logging
 import re
 import urllib.parse
@@ -53,53 +52,79 @@ __all__ = [
 
 class Request(object):
     """
-    Wraps a request object, which can be used to call the View class.
+    Wraps a request object, which can be used to call an API's
+    :meth:`~jsonapi.base.api.API.handle_request` method.
 
     :arg str uri:
+        The requested URI
     :arg str method:
+        The HTTP method (GET, POST, PATCH, ...)
     :arg dict headers:
+        The HTTP request headers
     :arg bytes body:
+        The HTTP request body
+    :arg jsonapi.base.api.API api:
+        The api object, which handles the request (can be set later)
+    :arg dict settings:
+        A dictionary, containing custom information associated with the
+        request.
     """
 
-    def __init__(self, uri, method, headers, body):
+    def __init__(self, uri, method, headers, body, api=None, settings=None):
         """
         """
         self.uri = uri
         self.method = method.lower()
         self.headers = {key.lower(): value for key, value in headers.items()}
         self.body = body
+        assert isinstance(body, (bytes, str))
+
+        #: Automatically set by the :meth:`~jsonapi.base.api.API.handle_request`
+        #: method from the responsible :class:`~jsonapi.base.api.API`.
+        self.api = api
 
         #: Contains parameters, which are encoded into the URI.
-        #: For example a resource uri: ``http://localhost:5000/api/User/1``
-        #: contains the id ``{'id': '1'}``
-        #: This attribute is populated by
+        #: For example the resource uri ``http://localhost:5000/api/User/1``
+        #: contains the id ``{'id': '1'}``.
         #:
-        #: :seealso: :meth:`jsonapi.base.api.API.find_handler`
+        #: This dictionary will be populated in the
+        #: :meth:`~jsonapi.base.api.API.handle_request` method.
         self.japi_uri_arguments = dict()
+
+        #: A simple dictionary, which you can use to store stuff associated
+        #: with this request. For example: The database session or the
+        #: the current user/client.
+        self.settings = settings or dict()
+        assert isinstance(self.settings, dict)
         return None
 
     @cached_property
     def parsed_uri(self):
         """
-        Returns a tuple with the uri components.
+        A tuple with the uri components
         """
         return urllib.parse.urlparse(self.uri)
 
     @cached_property
     def query(self):
         """
-        Returns a dictionary which maps a query key to its values.
+        A dictionary, which maps the query keys to their values.
         """
         query = urllib.parse.parse_qs(self.parsed_uri.query)
         return query
 
     def get_query_argument(self, name, fallback=None):
         """
-        Returns the (first) value of the query argument with the name *name*. If
-        the argument does not exist, *fallback* is returned.
-
         :arg str name:
+            The name of the query parameter
         :arg fallback:
+            Returned, if the *name* does not exist.
+
+        :rtype: str
+        :returns:
+            The value of the query argument with the name *name*. If there is
+            no query parameter with that name, *fallback* will be returned
+            instead.
         """
         value = self.query.get(name)
         return value[0] if value else fallback
@@ -107,15 +132,15 @@ class Request(object):
     @cached_property
     def content_type(self):
         """
-        Returns a tuple, with the media type and the parameters.
+        A tuple, with the media type and the parameters.
 
         .. code-block:: python3
 
             media_type, media_parameters = request.content_type
 
-        :seealso: :attr:`media_parameters`
         :seealso: https://tools.ietf.org/html/rfc7231#section-3.1.1.1
-        .. todo:: Parse the media parameters and return them.
+
+        :todo: Parse the media parameters and return them.
         """
         content_type = self.headers.get("content-type", "")
         type_, *parameters = content_type.split(";")
@@ -124,8 +149,8 @@ class Request(object):
     @cached_property
     def japi_page_number(self):
         """
-        Returns the number of the requested page or None. The first page
-        has the number 0.
+        The number of the requested page or ``None``. The first page has the
+        number **0**.
 
         Query parameter: ``page[number]``
 
@@ -148,7 +173,7 @@ class Request(object):
     @cached_property
     def japi_page_size(self):
         """
-        Returns the size of the pages or None.
+        The size of the pages or ``None``.
 
         Query parameter: ``page[size]``
 
@@ -171,15 +196,12 @@ class Request(object):
     @cached_property
     def japi_paginate(self):
         """
-        Returns True, if the result should be paginated.
+        Returns *True*, if the result of the request should be paginated.
         This is the case, if ``page[size]`` and ``page[number]`` are both
         present and valid.
 
-        .. seealso::
-
-            *   :attr:`japi_page_size`
-            *   :attr:`japi_page_number`
-            *   http://jsonapi.org/format/#fetching-pagination
+        :seealso: :attr:`japi_page_size`, :attr:`japi_page_number`
+        :seealso: http://jsonapi.org/format/#fetching-pagination
         """
         size = self.japi_page_size
         number = self.japi_page_number
@@ -196,14 +218,14 @@ class Request(object):
     @cached_property
     def japi_page_limit(self):
         """
-        Returns the *limit* based on the :attr:`japi_page_size`.
+        The *limit* based on the :attr:`japi_page_size`.
         """
         return self.japi_page_size if self.japi_paginate else None
 
     @cached_property
     def japi_page_offset(self):
         """
-        Returns the offset based on the :attr:`japi_page_size` and
+        The offset based on the :attr:`japi_page_size` and
         :attr:`japi_page_number`.
         """
         return self.japi_page_size*self.japi_page_number \
@@ -212,20 +234,29 @@ class Request(object):
     @cached_property
     def japi_filters(self):
         """
-        Please note, that the *filter* strategy is not defined by the
-        jsonapi specification and depends on the implementation. If you want to
-        use another filter strategy, feel free to **override** this method.
+        .. hint::
 
-        Returns a list, which contains 3-tuples of the structure::
+            Please note, that the *filter* strategy is not defined by the
+            jsonapi specification and depends on the implementation. If you want
+            to use another filter strategy, feel free to **override** this
+            property.
+
+        Returns a list, which contains 3-tuples::
 
             (fieldname, filtername, rule)
 
-        Each entry is a string. For example::
+        The *fieldname* is the name of the field, the filter is applied to, e.g.
+        *name*. The *filtername* is the name of the filter, which should be
+        applied, e.g. *startswith* and *rule* is an object, which describes
+        how it should be filtered, e.g. *Homer S*.
+
+        For example::
 
             ("name", "startswith", "Homer")
             ("age", "gt", 25)
+            ("name", "in", ["Homer", "Marge"])
 
-        Filter can be applied using the query string::
+        Filters can be applied using the query string::
 
             >>> # /api/User/?filter[name]=endswith:'Simpson'
             >>> request.japi_filters
@@ -243,14 +274,10 @@ class Request(object):
 
             "?filter[fieldname]=filtername:rule"
 
-        Where *fieldname* is the name of a relationship or attribute,
-        *filtername* is the name of the filter which should be applied and
-        *rule* is any JSON serializable object.
-
         :raises BadRequest:
             If the rule of a filter is not a JSON object.
         :raises BadRequest:
-            If a filtername contains other characters than [a-z].
+            If a filtername contains other characters than *[a-z]*.
         """
         KEY_RE = re.compile(r"filter\[(?P<field>[A-z0-9_]+)\]")
         VALUE_RE = re.compile(r"(?P<filtername>[a-z]+):(?P<rule>.*)")
@@ -275,7 +302,7 @@ class Request(object):
                 filtername = value_match.group("filtername")
                 rule = value_match.group("rule")
                 try:
-                    rule = json.loads(rule)
+                    rule = self.api.load_json(rule)
                 except Exception as err:
                     LOG.debug(err, exc_info=False)
                     raise BadRequest(
@@ -289,14 +316,13 @@ class Request(object):
     @cached_property
     def japi_fields(self):
         """
-        Returns the fields, which should be included in the response
-        (sparse fieldset).
+        The fields, which should be included in the response (sparse fieldset).
 
         .. code-block:: python3
 
             >>> # /api/User?fields[User]=email,name&fields[Post]=comments
             >>> request.japi_fields
-            ... {"User": ["email", "name"], "Post": ["comments"]}
+            {"User": ["email", "name"], "Post": ["comments"]}
 
         :seealso: http://jsonapi.org/format/#fetching-sparse-fieldsets
         """
@@ -325,7 +351,7 @@ class Request(object):
 
             >>> # /api/Post?include=author,comments.author
             >>> req.japi_include
-            ... [["author"], ["comments", "author"]
+            [["author"], ["comments", "author"]
 
         :seealso: http://jsonapi.org/format/#fetching-includes
         """
@@ -341,8 +367,8 @@ class Request(object):
 
         .. code-block:: python3
 
-            >>> # /api/Post?sort=name,-age
-            ... [("+", "name"), ("-", "age")]
+            >>> # /api/Post?sort=name,-age,+comments.count
+            [("+", ["name"]), ("-", ["age"]), ("+", ["comments", "count"])]]
 
         :seealso: http://jsonapi.org/format/#fetching-sorting
         """
@@ -351,11 +377,52 @@ class Request(object):
 
         sort = list()
         for field in tmp:
-            field = field.strip()
-            if field[0] == "-":
-                sort.append(("-", field[1:]))
-            elif field[0] == "+":
-                sort.append(("+", field[1:]))
+            if field[0] == "+" or field[0] == "-":
+                direction = field[0]
+                field = field[1:]
             else:
-                sort.append(("+", field))
+                direction = "+"
+
+            field = field.split(".")
+            field = [e.strip() for e in field]
+
+            sort.append((direction, field))
         return sort
+
+    @cached_property
+    def json(self):
+        """
+        Decodes the body assuming, that it is a JSON document. This method
+        uses the API's :meth:`~jsonapi.base.api.API.load_json` method.
+
+        :raises BadRequest:
+            If the API is **not** in debug mode and the body is not a valid
+            JSON document.
+        :raises Exception:
+            The original exception, if the API is in debug mode and the body
+            is not a valid JSON document.
+        """
+        body = self.body
+
+        # Decode the body
+        if isinstance(body, bytes):
+            try:
+                body = body.decode()
+            except UnicodeDecodeError:
+                if self.api.debug:
+                    raise
+                raise BadRequest(
+                    detail="The body of the request could not be decoded."
+                )
+
+        # Parse it.
+        try:
+            obj = self.api.load_json(body)
+        except Exception as err:
+            if self.api.debug:
+                raise
+            raise BadRequest(
+                detail = "The body of the request does not contain a valid "\
+                    "JSON document."
+                )
+        return obj

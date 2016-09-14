@@ -22,46 +22,32 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# std
-from setuptools import setup
+"""
+jsonapi.base.schema
+===================
+
+This module contains the essence of *py-jsonapi*: The schema/type definition.
+
+.. toctree::
+    :maxdepth: 1
+
+    base_property
+    id
+    attribute
+    relationship
+    to_one_relationship
+    to_many_relationship
+    link
+    meta
+    type
+"""
 
 # local
-import jsonapi
-
-
-try:
-    long_description = open("README.rst").read()
-except OSError:
-    long_description = "not available"
-
-try:
-    license_ = open("LICENSE").read()
-except OSError:
-    license_ = "not available"
-
-setup(
-    name = "py-jsonapi",
-    version = jsonapi.version.version,
-    description = "A toolkit for building a JSON API",
-    long_description = long_description,
-    author = "Benedikt Schmitt",
-    url = "https://github.com/benediktschmitt/py-jsonapi",
-    download_url = "https://github.com/benediktschmitt/py-jsonapi/archive/master.zip",
-    packages = [
-        "jsonapi",
-        "jsonapi.base",
-        "jsonapi.asyncio",
-    ],
-    license = license_,
-    install_requires = [
-        "cached_property"
-    ],
-    include_package_data = True,
-    classifiers = [
-        "Development Status :: 3 - Alpha",
-        "License :: OSI Approved :: MIT License",
-        "Operating System :: OS Independent",
-        "Topic :: Internet",
-        "Topic :: Software Development :: Libraries"
-    ]
-)
+from .attribute import Attribute, BoundAttribute
+from .id import ID, BoundID
+from .link import Link, BoundLink
+from .meta import Meta, BoundMeta
+from .relationship import RelationshipNotLoaded
+from .to_one_relationship import ToOneRelationship, BoundToOneRelationship
+from .to_many_relationship import ToManyRelationship, BoundToManyRelationship
+from .type import Type

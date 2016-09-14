@@ -15,16 +15,15 @@ Bug reports
 When you found a bug, please create a new
 `issue <https://github.com/benediktschmitt/py-jsonapi/issues>`_.
 
-Pull requests are also welcome :)
+Pull requests are also very welcome :)
 
 
 New adapters
 ------------
 
 If you created a new database adapter or implemented support for another
-web framework, please consider to share your code by including it into the
-*py-jsonapi* repository. Or tell me about it, so I can add a link to your
-project in this documentation.
+web framework, please consider to share your work and tell us about it on
+GitHub. We will add a link in this documentation to your project.
 
 
 Questions
@@ -37,4 +36,7 @@ issue with your question.
 Spelling Mistakes
 -----------------
 
-Nobody likes them, but they do happen. Please report also spelling mistakes :)
+The people who wrote this library are not native english speakers, so there
+are probably a lot of spelling mistakes and grammer errors in this
+documentation.
+Please report those things too :)

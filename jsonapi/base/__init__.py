@@ -26,31 +26,39 @@
 jsonapi.base
 ============
 
-This is the *base* of the *py-jsonapi* library. It contains the definition for
-interfaces (database, serializer), which can be overridden and then used by an
-API instance.
+.. sidebar:: Asyncio Version
 
-.. automodule:: jsonapi.base.handler
-.. automodule:: jsonapi.base.api
-.. automodule:: jsonapi.base.database
-.. automodule:: jsonapi.base.errors
-.. automodule:: jsonapi.base.pagination
-.. automodule:: jsonapi.base.request
-.. automodule:: jsonapi.base.response
-.. automodule:: jsonapi.base.schema
-.. automodule:: jsonapi.base.serializer
-.. automodule:: jsonapi.base.utilities
-.. automodule:: jsonapi.base.validators
+    You can find the base and schema for asynchronous frameworks here:
+    :mod:`jsonapi.asyncio`.
+
+This is the *base* of the *py-jsonapi* library. It contains the definitions for
+interfaces (schema, handlers), which can be used to implement a JSON:API
+compliant API.
+
+
+.. Remember to add a .rst file for each Python module listed here in the
+.. correct docs folder.
+
+.. toctree::
+    :maxdepth: 2
+
+    api
+    errors
+    handler
+    pagination
+    request
+    response
+    schema/index
+    utilities
+    validation
 """
 
 # local
-from . import handler
 from . import api
-from . import database
 from . import errors
-from .request import Request
-from .response import Response
+from . import handler
+from . import request
+from . import response
 from . import schema
-from . import serializer
 from . import utilities
-from . import validators
+from . import validation

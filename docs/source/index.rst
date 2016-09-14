@@ -3,36 +3,15 @@ Welcome to py-jsonapi's documentation!
 
 .. attention::
 
-    This library is under active development. If you have any suggestions,
-    please create an issue on GitHub.
+    This library is in an early state. If you have any suggestions,
+    please create an issue on GitHub. Every help is appreciated.
 
 .. toctree::
     :maxdepth: 1
 
     tutorial/index
-    base
-    asyncio
-    marker
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Database drivers
-
-    mongoengine
-    motorengine
-    sqlalchemy
-    bulk_database
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Web frameworks
-
-    flask
-    tornado
-
-.. toctree::
-    :maxdepth: 1
-    :caption: About py-jsonapi
+    base/index
+    extensions
 
     contribute
     license
@@ -49,11 +28,8 @@ Description
 -----------
 
 This library implements the http://jsonapi.org specification in **Python 3**.
-It is easy to use, extendible and comes with support for many web frameworks and
-database drivers, like :mod:`~jsonapi.flask`, :mod:`~jsonapi.tornado`,
-:mod:`~jsonapi.mongoengine` and :mod:`~jsonapi.sqlalchemy`.
+It is easy to use, extendible and there are :ref:`extensions` for Flask,
+SQLAlchemy, mongoengine and Tornado, ... which make your job even easier.
 
-Here is a simple API using *flask* and *mongoengine*:
-
-.. literalinclude:: ../../examples/teaser.py
-    :linenos:
+Let's take a look at the :ref:`examples <blog-api>`, where we will
+implement a blog using *mongoengine* and *flask*.

@@ -24,7 +24,6 @@ import sphinx_rtd_theme
 sys.path.insert(0, os.path.abspath('../../'))
 
 import jsonapi
-import examples.blog
 
 # -- General configuration ------------------------------------------------
 
@@ -280,5 +279,7 @@ texinfo_documents = [
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
     'http://docs.python.org/3/': None,
-    'http://docs.python.org/': None
+    'http://docs.python.org/': None,
+    'https://api.mongodb.com/python/current/': None,
+    'http://docs.mongoengine.org/': None,
 }
