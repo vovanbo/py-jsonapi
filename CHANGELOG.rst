@@ -4,7 +4,8 @@ Changelog
 *   1.0.0b0
 
     *   This library now follows a **model-view** approach. This gives
-        the developer more control serialization and patching of resources.
+        the developer more control about the serialization and patching of
+        resources.
 
         Implementing a permission system is now very easy.
 
