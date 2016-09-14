@@ -23,7 +23,7 @@ Example
 
 First of all, here is an example, when you use the sqlalchemy extension:
 
-.. code-block:: python3
+.. code-block:: python
 
     class PostAPI(jsonapi_sqlalchemy.schema.Type):
         resource_class = Post
