@@ -207,6 +207,9 @@ class Type(metaclass=TypeMeta):
     *   :meth:`create_resource`
     *   :meth:`update_resource`
     *   :meth:`delete_resource`
+    *   :meth:`update_relationship`
+    *   :meth:`extend_relationship`
+    *   :meth:`clear_relationship`
     *   :meth:`get_collection`
     *   :meth:`get_resources`
 
@@ -240,12 +243,14 @@ class Type(metaclass=TypeMeta):
 
     def serialize_resource(self, resource, request):
         """
+        .. seealso::
+
+            http://jsonapi.org/format/#document-resource-objects
+
         Creates the JSON API resource object.
 
         :arg resource:
         :arg ~jsonapi.base.request.Request request:
-
-        :seealso: http://jsonapi.org/format/#document-resource-objects
         """
         d = OrderedDict()
         d.update(self.serialize_id(resource))
@@ -269,11 +274,13 @@ class Type(metaclass=TypeMeta):
 
     def serialize_id(self, resource):
         """
+        .. seealso::
+
+            http://jsonapi.org/format/#document-resource-identifier-objects
+
         Creates the JSON API resource identifier object.
 
         :arg resource:
-
-        :seealso: http://jsonapi.org/format/#document-resource-identifier-objects
         """
         d = OrderedDict([
             ("type", self.typename),
@@ -283,12 +290,14 @@ class Type(metaclass=TypeMeta):
 
     def serialize_attributes(self, resource, request):
         """
+        .. seealso::
+
+            http://jsonapi.org/format/#document-resource-object-attributes
+
         Creates the JSON API attributes object.
 
         :arg resource:
         :arg ~jsonapi.base.request.Request request:
-
-        :seealso: http://jsonapi.org/format/#document-resource-object-attributes
         """
         fields = request.japi_fields.get(self.typename)
 
@@ -300,6 +309,10 @@ class Type(metaclass=TypeMeta):
 
     def serialize_relationships(self, resource, request, *, require_data=None):
         """
+        .. seealso::
+
+            http://jsonapi.org/format/#document-resource-object-relationships
+
         Creates the JSON API relationships object.
 
         :arg resource:
@@ -307,8 +320,6 @@ class Type(metaclass=TypeMeta):
         :arg require_data:
             A list with the names of all relationships, for which the resource
             linkage (*data* member) *must* be included.
-
-        :seealso: http://jsonapi.org/format/#document-resource-object-relationships
         """
         fields = request.japi_fields.get(self.typename)
 
@@ -323,6 +334,10 @@ class Type(metaclass=TypeMeta):
 
     def serialize_relationship(self, relname, resource, request, *, require_data=False):
         """
+        .. seealso::
+
+            http://jsonapi.org/format/#document-resource-object-relationships
+
         Creates the JSON API relationship object of the relationship with the
         name *name*.
 
@@ -332,8 +347,6 @@ class Type(metaclass=TypeMeta):
         :arg ~jsonapi.base.request.Request request:
         :arg bool require_data:
             If true, the resource linkage (the related ids) are included.
-
-        :seealso: http://jsonapi.org/format/#document-resource-object-relationships
         """
         rel = self.relationships.get(relname)
         if rel is None:
@@ -379,12 +392,14 @@ class Type(metaclass=TypeMeta):
 
     def serialize_links(self, resource, request):
         """
+        .. seealso::
+
+            http://jsonapi.org/format/#document-links
+
         Creates the JSON API links object of the resource *resource*.
 
         :arg request: The request context
         :arg ~jsonapi.base.request.Request request:
-
-        :seealso: http://jsonapi.org/format/#document-links
         """
         d = OrderedDict([])
         for name, link in self.links.items():
@@ -393,12 +408,14 @@ class Type(metaclass=TypeMeta):
 
     def serialize_meta(self, resource, request):
         """
+        .. seealso::
+
+            http://jsonapi.org/format/#document-meta
+
         Creates the JSON API meta object of the resource *resource*.
 
         :arg resource:
         :arg request: The request context
-
-        :seealso: http://jsonapi.org/format/#document-meta
         """
         d = OrderedDict([])
         for name, meta in self.meta.items():
@@ -413,6 +430,13 @@ class Type(metaclass=TypeMeta):
 
     def create_resource(self, data, request):
         """
+        .. seealso::
+
+            * http://jsonapi.org/format/#document-resource-objects
+            * http://jsonapi.org/format/#crud-creating
+
+        ``POST /api/Article/``
+
         Creates a new resource using the JSON API resource object *data*.
 
         The default implementation loads all related resources in
@@ -430,9 +454,6 @@ class Type(metaclass=TypeMeta):
         :arg ~jsonapi.base.request.Request request:
         :returns:
             The new resource
-
-        :seealso: http://jsonapi.org/format/#document-resource-objects
-        :seealso: http://jsonapi.org/format/#crud-creating
         """
         if data["type"] != self.typename:
             detail = "The type '{}' is not part of this collection."
@@ -467,6 +488,13 @@ class Type(metaclass=TypeMeta):
 
     def update_resource(self, resource, data, request):
         """
+        .. seealso::
+
+            * http://jsonapi.org/format/#document-resource-objects
+            * http://jsonapi.org/format/#crud-updating
+
+        ``PATCH /api/Article/42``
+
         Updates an existing resource using the JSON API resource object *data*.
 
         The default implementation uses the *setter* of all attributes
@@ -481,21 +509,21 @@ class Type(metaclass=TypeMeta):
 
         :returns:
             The updated resource
-
-        :seealso: http://jsonapi.org/format/#document-resource-objects
-        :seealso: http://jsonapi.org/format/#crud-updating
         """
         # *resource* is an id, but it does not match the id in *data*.
         if isinstance(resource, str) and resource != data["id"]:
             detail = "The 'id' does not match the endpoint."
             raise errors.Conflict(detail=detail)
+        assert self.id.get(resource) == data["id"]
+
         if self.typename != data["type"]:
             detail = "The 'type' does not match the endpoint."
             raise errors.Conflict(detail=detail)
 
         # *resource* is an id, so we have to load the resource object first.
         if isinstance(resource, str):
-            resource = self.get_resource(resource_id, [], request)
+            include = list(data.get("relationships"), [])
+            resource = self.get_resource(resource_id, include, request)
 
         # Update all attributes of the resource using the descriptors.
         if "attributes" in data:
@@ -530,22 +558,38 @@ class Type(metaclass=TypeMeta):
 
     def delete_resource(self, resource, request):
         """
-        **Must** be overridden.
+        .. seealso::
+
+            http://jsonapi.org/format/#crud-deleting
+
+        ``DELETE /api/Article/42``
 
         Deletes an existing resource.
+
+        **Must** be overridden.
 
         :arg resource:
             The **id** of the resource or the **resource** object, which
             should be deleted.
         :arg request:
             The request context
-
-        :seealso: http://jsonapi.org/format/#crud-deleting
         """
         raise NotImplementedError()
 
     def get_related(self, relname, resource, query_params, request):
         """
+        .. seealso::
+
+            * http://jsonapi.org/format/#fetching-relationships
+            * http://jsonapi.org/format/#fetching-includes
+            * http://jsonapi.org/format/#fetching-sorting
+            * http://jsonapi.org/format/#fetching-pagination
+            * http://jsonapi.org/format/#fetching-filtering
+
+        ``GET /api/Article/42/author``
+
+        ``GET /api/Article/42/comments``
+
         Loads the related resources in the relationship *relname*.
 
         The default implementation is basically a wrapper around the
@@ -565,12 +609,6 @@ class Type(metaclass=TypeMeta):
         :rtype:
             A tuple ``(related, total_number)`` with the related resources
             and the total number of related resources in the relationship.
-
-        :seealso: http://jsonapi.org/format/#fetching-relationships
-        :seealso: http://jsonapi.org/format/#fetching-includes
-        :seealso: http://jsonapi.org/format/#fetching-sorting
-        :seealso: http://jsonapi.org/format/#fetching-pagination
-        :seealso: http://jsonapi.org/format/#fetching-filtering
         """
         rel = self.relationships.get(relname)
         assert rel is not None
@@ -610,6 +648,13 @@ class Type(metaclass=TypeMeta):
 
     def update_relationship(self, relname, resource, data, request):
         """
+        .. seealso::
+
+            * http://jsonapi.org/format/#document-resource-object-relationships
+            * http://jsonapi.org/format/#crud-updating-relationships
+
+        ``PATCH /api/Article/42/author``
+
         Updates the relationship with the name *relname*.
 
         The default implementation uses the *setter* of the relationship.
@@ -623,9 +668,6 @@ class Type(metaclass=TypeMeta):
             A JSON API relationships object
         :arg request:
             The request context
-
-        :seealso: http://jsonapi.org/format/#document-resource-object-relationships
-        :seealso: http://jsonapi.org/format/#crud-updating-relationships
         """
         rel = self.relationships[relname]
 
@@ -646,6 +688,13 @@ class Type(metaclass=TypeMeta):
 
     def extend_relationship(self, relname, resource, data, request):
         """
+        .. seealso::
+
+            * http://jsonapi.org/format/#document-resource-object-relationships
+            * http://jsonapi.org/format/#crud-updating-relationships (POST)
+
+        ``POST /api/Article/42/comments``
+
         Adds new relatives to a *to-many* relationship.
 
         The default implementation uses the *extend* function of the
@@ -660,9 +709,6 @@ class Type(metaclass=TypeMeta):
             A JSON API relationships object with the new relatives
         :arg request:
             The request context
-
-        :seealso: http://jsonapi.org/format/#document-resource-object-relationships
-        :seealso: http://jsonapi.org/format/#crud-updating-relationships (POST)
         """
         rel = self.relationships[relname]
         assert rel.to_many
@@ -684,6 +730,12 @@ class Type(metaclass=TypeMeta):
 
     def clear_relationship(self, relname, resource, request):
         """
+        .. seealso::
+
+            http://jsonapi.org/format/#crud-updating-relationships (DELETE)
+
+        ``DELETE /api/Article/42/comments``
+
         Removes all relatives from a *to-many* relationship.
 
         The default implementation uses the *clear* function of the
@@ -696,8 +748,6 @@ class Type(metaclass=TypeMeta):
             relationship should be updated.
         :arg request:
             The request context
-
-        :seealso: http://jsonapi.org/format/#crud-updating-relationships (DELETE)
         """
         rel = self.relationships[relname]
         assert rel.to_many
@@ -715,6 +765,12 @@ class Type(metaclass=TypeMeta):
 
     def get_collection(self, query_params, request):
         """
+        .. seealso::
+
+            http://jsonapi.org/format/#fetching-resources
+
+        ``GET /api/Article/``
+
         Returns a list of resources, which are part of the collection and
         the total number of resources in the collection.
 
@@ -777,6 +833,12 @@ class Type(metaclass=TypeMeta):
 
     def get_resource(self, id_, include, request):
         """
+        .. seealso::
+
+            http://jsonapi.org/format/#fetching-resources
+
+        ``GET /api/Article/42``
+
         The same as :meth:`get_resource`, but for only one resource.
 
         The default implementation uses :meth:`get_resources` to fetch one

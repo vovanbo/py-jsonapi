@@ -1,10 +1,9 @@
 # README
 
-This example is a simple blog with three models:
+This example is a simple blog with onyl two models:
 
 *   User
 *   Post
-*   and Comment
 
 it uses sqlalchemy and flask. We will only use the base py-jsonapi package
-and no extensions.
+and the py-jsonapi-flask extension.
