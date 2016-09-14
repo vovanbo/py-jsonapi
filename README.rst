@@ -5,8 +5,8 @@ py-jsonapi
 **If you have any suggestions or found bugs, please create a new issue.**
 
 
-This library is a toolkit for building a http://jsonapi.org/ compliant API.
-There are extensions for many web frameworks and database drivers:
+This library is a model-view framework for building a http://jsonapi.org/
+compliant API. There are extensions for many web frameworks and database drivers:
 
 *   `flask <https://github.com/benediktschmitt/py-jsonapi-flask>`__
 *   `tornado <https://github.com/benediktschmitt/py-jsonapi-tornado>`__
