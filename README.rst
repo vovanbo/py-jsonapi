@@ -44,7 +44,7 @@ If you don't want to use an extension, you can use the *base*
 descriptors. Here is a code snippet, which should give you an impression of
 *py-jsonapi*:
 
-.. code-block:: python3
+.. code-block:: python
 
     class PostAPI(jsonapi.base.schema.Type):
         resource_class = Post
