@@ -78,7 +78,7 @@ class Relationship(WriteableProperty):
     to_many = None
 
     def __init__(
-        self, remote_type, *, fget=None, fset=None, frelated=None, name="",
+        self, remote_type=None, *, fget=None, fset=None, frelated=None, name="",
         doc="", preload_new_children=True
         ):
         super().__init__(fget=fget, fset=fset, name=name, doc=doc)

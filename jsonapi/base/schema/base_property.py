@@ -100,6 +100,9 @@ class BoundReadableProperty(object):
         self.prop = prop
         self.type = type_
 
+        self.name = prop.name
+        self.key = prop.key
+
         # Bind the getter
         self.get = MethodType(self.prop.fget, self.type)\
             if self.prop.fget else self.default_get
@@ -124,8 +127,8 @@ class WriteableProperty(ReadableProperty):
 
     def __init__(self, *, fget=None, fset=None, name="", doc=""):
         super().__init__(fget=fget, name=name, doc=doc)
-        self.fset = None
 
+        self.fset = None
         if fset:
             self.setter(fset)
         return None

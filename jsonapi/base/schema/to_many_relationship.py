@@ -170,8 +170,8 @@ class ToManyRelationship(Relationship):
     to_many = True
 
     def __init__(
-        self, remote_type, *, fget=None, fset=None, fextend=None, fclear=None,
-        frelated=None, name="", doc="", preload_new_children=True
+        self, remote_type=None, *, fget=None, fset=None, fextend=None,
+        fclear=None, frelated=None, name="", doc="", preload_new_children=True
         ):
         super().__init__(
             remote_type=remote_type, fget=fget, fset=fset, doc=doc, name=name,

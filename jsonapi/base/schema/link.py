@@ -74,6 +74,11 @@ class BoundLink(BoundReadableProperty):
     An Link bounded to a specific Type instance.
     """
 
+    def __init__(self, link, type_):
+        super().__init__(link, type_)
+        self.href = link.href
+        return None
+
     def default_get(self, resource):
         """
         Called, if no *getter* has been defined.
@@ -81,6 +86,6 @@ class BoundLink(BoundReadableProperty):
         The default implementation returns :attr:`Link.href`, if it is defined
         and raises a :exc:`NotImplementedError` exception otherwise.
         """
-        if self.prop.href:
-            return self.prop.href
+        if self.href:
+            return self.href
         raise NotImplementedError()

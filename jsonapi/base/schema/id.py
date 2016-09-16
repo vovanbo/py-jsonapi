@@ -101,6 +101,11 @@ class BoundID(BoundWriteableProperty):
     An ID bound to a specific Type instance.
     """
 
+    def __init__(self, id_, type_):
+        super().__init__(id_, type_)
+        self.regex = id_.regex
+        return None
+
     def default_set(self, resource, new_id):
         """
         Called, if no *setter* has been defined.

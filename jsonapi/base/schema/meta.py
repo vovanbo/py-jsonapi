@@ -83,8 +83,13 @@ class BoundMeta(BoundReadableProperty):
     An Meta descriptor, bounded to a specific Type instance.
     """
 
+    def __init__(self, meta, type_):
+        super().__init__(meta, type_)
+        self.value = value
+        return None
+
     def default_get(self, resource, request):
         """
         Returns the :attr:`Meta.value`.
         """
-        return self.prop.value
+        return self.value

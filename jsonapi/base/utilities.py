@@ -30,12 +30,17 @@ This module contains some helpers, which are frequently needed in different
 modules.
 """
 
+# std
+import warnings
+
 
 __all__ = [
     "Symbol",
     "collect_identifiers",
     "rebase_include",
-    "load_relationships_object"
+    "load_relationships_object",
+    "register_auto_type",
+    "auto_type"
 ]
 
 
@@ -189,3 +194,58 @@ def load_relationships_object(d, api, request):
                 for item in value["data"]
             ]
     return relationships
+
+
+# The type factory
+__auto_type_factories = []
+
+def register_auto_type(func):
+    """
+    Registers a new *auto_type()* function. This function receives a *model*
+    and must either return a new :class:`~jsonapi.base.schema.type.Type`
+    *class* (not an instance!), a list of *Type* classes or *None*.
+
+    This function can be used as decorator::
+
+        @register_auto_type
+        def neo_auto_type(model):
+            # ...
+            return Type
+
+    :arg callable func:
+    """
+    global __auto_type_factories
+    __auto_type_factories.append(func)
+    return func
+
+
+def auto_type(model, api=None):
+    """
+    A type factory for new JSON API types. If possible, we will create
+    a JSON API Type based on the model automatic. If an API is given,
+    we will also register the new Type.
+
+    :arg model:
+    :arg ~jsonapi.base.api.API api:
+    :rtype: ~jsonapi.base.schema.Type
+    """
+    warnings.warn(
+        "The *auto_type()* feature is still experimental. Use with care.",
+        FutureWarning
+    )
+
+    global __auto_type_factories
+
+    Types = None
+    for func in __auto_type_factories:
+        Types = func(model)
+        if Types:
+            break
+
+    if Types is not None and api:
+        if isinstance(Types, list):
+            for Type in Types:
+                api.add_type(Type())
+        else:
+            api.add_type(Type())
+    return Types
