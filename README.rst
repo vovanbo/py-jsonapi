@@ -114,8 +114,9 @@ which should give you an impression of *py-jsonapi*:
             }
             return posts
 
-If you want to more or are looking for a complete, working example, take a look
-at the `documentation <https://py-jsonapi.readthedocs.org>`__.
+If you want to know more, please take a look at the
+`documentation <https://py-jsonapi.readthedocs.org>`__. It has a more complete
+introduction and tutorial.
 
 
 Changelog
