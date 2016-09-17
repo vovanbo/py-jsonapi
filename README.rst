@@ -48,11 +48,9 @@ example using the *flask* and *mongoengine* extension:
 That's it. The example is working and you can find the user collection at
 ``localhost:5000/api/User/``.
 
-If you don't want to use an extension or there is no extension available for
-your database, you can use the *base* descriptors. They give you full control
-about the serialization and map the JSON API document structure to Python
-using decorators. Here is a code snippet, which should give you an impression of
-*py-jsonapi*:
+If you don't want to use an extension or if there is no extension available for
+your database, then you can use the *base* package. Here is a code snippet,
+which should give you an impression of *py-jsonapi*:
 
 .. code-block:: python
 
