@@ -90,8 +90,8 @@ class Handler(object):
             return self.head(request)
         elif request.method == "post":
             return self.post(request)
-        elif request.method == "put":
-            return self.put(request)
+        elif request.method == "patch":
+            return self.patch(request)
         elif request.method == "options":
             return self.options(request)
         raise errors.MethodNotAllowed()
@@ -108,7 +108,7 @@ class Handler(object):
     def post(self, request):
         raise errors.MethodNotAllowed()
 
-    def put(self, request):
+    def patch(self, request):
         raise errors.MethodNotAllowed()
 
     def options(self, request):

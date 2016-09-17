@@ -199,7 +199,7 @@ class BoundRelationship(BoundWriteableProperty):
         resource_id = self.type.id.get(resource)
         return self.type.uri + "/" + resource_id + "/" + self.prop.name
 
-    @cached_property
+    @property
     def remote_type(self):
         """
         The :class:`~jsonapi.base.schema.type.Type` of the remote class.
@@ -212,21 +212,21 @@ class BoundRelationship(BoundWriteableProperty):
             remote_type = self.prop._remote_type()
         else:
             remote_type = self.prop._remote_type
-        return self.type.api.get_type(remote_type)
+        return self.type.api.get_type(remote_type, None)
 
-    @cached_property
+    @property
     def remote_typename(self):
         """
         The JSON API typename of the remote side.
         """
-        return self.remote_type.typename
+        return self.remote_type.typename if self.remote_type else None
 
-    @cached_property
+    @property
     def remote_class(self):
         """
         The resource class on the other side of the relationship.
         """
-        return self.remote_type.resource_class
+        return self.remote_type.resource_class if self.remote_type else None
 
     def default_set(self, *args, **kargs):
         """

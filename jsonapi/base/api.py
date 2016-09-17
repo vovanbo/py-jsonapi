@@ -501,6 +501,11 @@ class API(object):
         # Check if all include paths exist.
         for path in include:
             type_ = root_type
+
+            if type_ is None:
+                LOG.warning("Can not validate include path: '%s'", path)
+                break
+
             for name in path:
                 rel = type_.relationships.get(name)
                 if rel is None:

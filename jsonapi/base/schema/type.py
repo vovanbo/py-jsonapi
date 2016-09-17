@@ -473,7 +473,7 @@ class Type(metaclass=TypeMeta):
 
         # Load the relatives.
         relatives = utilities.load_relationships_object(
-            relationships, self.api, self.request
+            relationships, self.api, request
         )
 
         # Pass the relatives and the attributes to the constructor.
@@ -514,16 +514,16 @@ class Type(metaclass=TypeMeta):
         if isinstance(resource, str) and resource != data["id"]:
             detail = "The 'id' does not match the endpoint."
             raise errors.Conflict(detail=detail)
-        assert self.id.get(resource) == data["id"]
-
         if self.typename != data["type"]:
             detail = "The 'type' does not match the endpoint."
             raise errors.Conflict(detail=detail)
 
         # *resource* is an id, so we have to load the resource object first.
         if isinstance(resource, str):
-            include = list(data.get("relationships"), [])
-            resource = self.get_resource(resource_id, include, request)
+            include = list(data.get("relationships", []))
+            resource = self.get_resource(resource, include, request)
+
+        assert self.id.get(resource) == data["id"]
 
         # Update all attributes of the resource using the descriptors.
         if "attributes" in data:
