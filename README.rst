@@ -21,27 +21,37 @@ engines**. You can use **blocking and asynchronous** code.
 Example
 -------
 
-First of all, here is an example, when you use the sqlalchemy extension:
+If you only want to create an API for your models very fast
+(e.g. for prototyping), you can use the *auto_type()* function. Here is an
+example using the *flask* and *mongoengine* extension:
 
 .. code-block:: python
 
-    class PostAPI(jsonapi_sqlalchemy.schema.Type):
-        resource_class = Post
+    import flask
+    import mongoengine
+    import jsonapi, jsonapi_flask, jsonapi_mongoengine
 
-        id = jsonapi_sqlalchemy.schema.ID(Post.id)
-        text = jsonapi_sqlalchemy.schema.Attribute(Post.text)
-        author = jsonapi_sqlalchemy.schema.ToOneRelationship(Post.author, read_only=True)
+    class User(mongoengine.Document):
+        name = mongoengine.StringField()
+        email = mongoengine.EmailField()
+        birthday = mongoengine.DateTimeField()
 
-        @text.setter
-        def text(self, post, new_text, request):
-            if request.user != post.author:
-                raise jsonapi.base.errors.Forbidden()
-            post.text = new_text
+    app = flask.Flask(__name__)
 
-That's it. The sqlalchemy extension implements everything else.
+    api = jsonapi_flask.api.API(uri="/api", flask_app=app)
+    jsonapi.base.utilities.auto_type(User, api=api)
 
-If you don't want to use an extension, you can use the *base*
-descriptors. Here is a code snippet, which should give you an impression of
+    if __name__ == "__main__":
+        mongoengine.connect("py-jsonapi")
+        app.run(debug=True)
+
+That's it. The example is working and you can find the user collection at
+``localhost:5000/api/User/``.
+
+If you don't want to use an extension or there is no extension available for
+your database, you can use the *base* descriptors. They give you full control
+about the serialization and map the JSON API document structure to Python
+using decorators. Here is a code snippet, which should give you an impression of
 *py-jsonapi*:
 
 .. code-block:: python
@@ -106,9 +116,8 @@ descriptors. Here is a code snippet, which should give you an impression of
             }
             return posts
 
-If you want to know more, take a look at the
-`documentation <https://py-jsonapi.readthedocs.org>`__. We will implement
-a *blog* with *py-jsonapi*.
+If you want to more or are looking for a complete, working example, take a look
+at the `documentation <https://py-jsonapi.readthedocs.org>`__.
 
 
 Changelog

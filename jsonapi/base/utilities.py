@@ -167,8 +167,6 @@ def load_relationships_object(d, api, request):
         resources in the *data* dictionary of the relationship.
 
     :seealso: http://jsonapi.org/format/#document-resource-object-relationships
-
-    :todo: Make this function a method of the API object?
     """
     ids = collect_identifiers(d, with_data=True, with_meta=False)
     resources = api.get_resources(ids, request)
@@ -247,5 +245,5 @@ def auto_type(model, api=None):
             for Type in Types:
                 api.add_type(Type())
         else:
-            api.add_type(Type())
+            api.add_type(Types())
     return Types

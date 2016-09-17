@@ -20,28 +20,29 @@ Changelog
         are now separate projects and can be installed with pip. This change
         makes the development and versioning easier.
 
+    *   The *jsonapi.base.utilities.auto_type()* function replaces the old
+        schemas. Extensions will register a *Type* factory and the *auto_type()*
+        function will create a new *Type* for your model automatic.
+
+        .. code-block:: python
+
+            # In 0.3.0b0
+            user_schema = jsonapi.mongoengine.Schema(User)
+            api.add_type(user_schema)
+
+            # In 1.0.0b0
+            UserAPI = jsonapi.base.utilities.auto_type(User))
+            api.add_type(UserAPI())
+
+            # or even shorter
+            jsonapi.base.utilities.auto_type(User, api=api)
+
     *   **Everything, what was possible in 0.3.0b0 is still possible in 1.0.0b0+**
 
     These changes were necessairy, because implementing a new API was very
     complicated in 0.3.0b0, when no extension was available for the target web
     framework or database. Writing a good permission system, which prevents
     the client from reading or editing some fields was not possible.
-
-    The earlier versions py-jsonapi were great for creating an API based on
-    existing models very fast. But it was not adaptable. In the next
-    minor releases, I will add a ``make_type(model)`` factory, which creates
-    a py-jsonapi *Type* based on the model, similar to the creation of
-    *schema* in the earlier versions:
-
-    .. code-block:: python3
-
-        # 0.3.0b0
-        user_schema = jsonapi.sqlalchemy.Schema(User)
-        # or
-        user_schema = jsonapi.mongoengine.Schema(User)
-
-        # vs 1.0.0b0+
-        user_type = jsonapi.base.make_type(model)
 
 *   0.3.0b0
 

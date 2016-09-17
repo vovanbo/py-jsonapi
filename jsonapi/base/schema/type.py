@@ -52,7 +52,7 @@ class TypeMeta(type):
     detects all fields (descriptors) defined on a Type and binds them to
     new Type instances.
 
-    :todo: Support Mixins?
+    :todo: Mixins are currently not supported.
     """
 
     def __new__(cls_meta, cls_name, cls_bases, cls_attributes):
