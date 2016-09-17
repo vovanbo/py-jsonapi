@@ -520,7 +520,10 @@ class Type(metaclass=TypeMeta):
 
         # *resource* is an id, so we have to load the resource object first.
         if isinstance(resource, str):
-            include = list(data.get("relationships", []))
+            if data.get("relationships"):
+                include = [[name] for name in data.get("relationships").keys()]
+            else:
+                include = None
             resource = self.get_resource(resource, include, request)
 
         assert self.id.get(resource) == data["id"]
