@@ -444,8 +444,7 @@ class Type(metaclass=TypeMeta):
         ``data["attributes"]`` to the constructor of the resource class.
         If ``data["id"]`` is given, the id is also passed to the constructor.
 
-        For security reasons, fields in *data*, which do not exist on this
-        schema are filtered out.
+        Fields in *data*, which do not exist on this schema are filtered out.
 
         You **should override** this method.
 
@@ -731,7 +730,7 @@ class Type(metaclass=TypeMeta):
         rel.extend(resource, data, new_relatives, request)
         return resource
 
-    def clear_relationship(self, relname, resource, request):
+    def remove_relationship(self, relname, resource, data, request):
         """
         .. seealso::
 
@@ -739,16 +738,20 @@ class Type(metaclass=TypeMeta):
 
         ``DELETE /api/Article/42/comments``
 
-        Removes all relatives from a *to-many* relationship.
+        Removes some relatives from a *to-many* relationship.
 
-        The default implementation uses the *clear* function of the
+        The default implementation uses the *remove* function of the
         relationship.
 
-        :arg str resource:
+        :arg str relname:
             The name of the relationship, which should be updated.
-        :arg resource_id:
+        :arg resource:
             The resource **object** or the **id** of the resource, whose
             relationship should be updated.
+        :arg dict data:
+            A JSON API relationships object, whichs *data* member contains
+            the ids of the relatives, which will be removed from this
+            relationship.
         :arg request:
             The request context
         """
@@ -760,7 +763,14 @@ class Type(metaclass=TypeMeta):
         if isinstance(resource, str):
             resource = self.get_resource(resource, None, request)
 
-        rel.clear(resource, request)
+        if rel.preload_new_children:
+            new_relatives = utilities.collect_identifiers(data)
+            new_relatives = self.api.get_resources(new_relatives, request)
+            new_relatives = list(new_relatives.values())
+        else:
+            new_relatives = RelationshipNotLoaded
+
+        rel.remove(resource, data, new_relatives, request)
         return resource
 
     #: Provider

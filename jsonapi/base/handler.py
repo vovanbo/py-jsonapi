@@ -407,15 +407,17 @@ class ToManyRelationshipHandler(RelationshipHandler):
 
     def delete(self, request):
         """
-        :seealso: :meth:`~jsonapi.base.schema.type.Type.clear_relationship`
+        :seealso: :meth:`~jsonapi.base.schema.type.Type.remove_relationship`
         :seealso: http://jsonapi.org/format/#crud-updating-relationships (DELETE)
         """
         if request.content_type[0] != "application/vnd.api+json":
             raise errors.UnsupportedMediaType()
 
         # Get the resource
-        resource = self.type.clear_relationship(
-            self.relname, request.japi_uri_arguments["id"], request
+        validation.assert_relationship_object(request.json)
+        resource = self.type.remove_relationship(
+            self.relname, request.japi_uri_arguments["id"], request.json,
+            request
         )
 
         # Build the body.

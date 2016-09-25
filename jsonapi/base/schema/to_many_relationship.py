@@ -146,24 +146,27 @@ class ToManyRelationship(Relationship):
 
     If you implemented a *setter*, you **must** implement *fextend*.
 
-    **fclear**
+    **fremove**
 
-    The *fclear* method receives a *resource object* and the current
-    *request context* as parameters.
+    The *fremove* method receives a *resource object*, a JSON API
+    *relationship object* with the ids of the obsolete relatives,
+    the *obsolete relatives* and the current *request context* as parameters.
 
-    It removes all related resources from the relationship.
+    The *obsolete relatives* are only given, if :attr:`preload_new_children`
+    is *True* and :data:`RelationshipNotLoaded` otherwise.
+
+    This method removes the obsolete relatives from the relationship:
 
     .. code-block:: python3
 
-            @comments.clearer
-            def comments(self, article, request):
+            @comments.remover
+            def comments(self, article, data, removed_comments, request):
                 if not request.settings["user"].is_admin:
                     raise Forbidden()
                 article.set_comments([])
                 return None
 
-    If no *fclear* method is implemented, we use the *setter* method to
-    reset the relationship.
+    If you implemented a *setter*, you **must** implement *fremove*.
     """
 
     to_one = False
@@ -171,7 +174,7 @@ class ToManyRelationship(Relationship):
 
     def __init__(
         self, remote_type=None, *, fget=None, fset=None, fextend=None,
-        fclear=None, frelated=None, name="", doc="", preload_new_children=True
+        fremove=None, frelated=None, name="", doc="", preload_new_children=True
         ):
         super().__init__(
             remote_type=remote_type, fget=fget, fset=fset, doc=doc, name=name,
@@ -183,10 +186,10 @@ class ToManyRelationship(Relationship):
         if fextend:
             self.extend(fextend)
 
-        #: Called, when all relatives should be *removed* from the relationship.
-        self.fclear = None
-        if fclear:
-            self.clear(fclear)
+        #: Called, when some relatives should be *removed* from the relationship.
+        self.fremove = None
+        if fremove:
+            self.remover(fremove)
         return None
 
     def bind(self, type_):
@@ -199,11 +202,11 @@ class ToManyRelationship(Relationship):
         self.fextend = fextend
         return self
 
-    def clear(self, fclear):
+    def remover(self, fremove):
         """
-        Descriptor for the :attr:`fclear` method.
+        Descriptor for the :attr:`fremove` method.
         """
-        self.fclear = fclear
+        self.fremove = fremove
         return self
 
 
@@ -219,9 +222,9 @@ class BoundToManyRelationship(BoundRelationship):
         self.extend = MethodType(self.prop.fextend, self.type)\
             if self.prop.fextend else self.default_extend
 
-        # Bind the clear function
-        self.clear = MethodType(self.prop.fclear, self.type)\
-            if self.prop.fclear else self.default_clear
+        # Bind the remove function
+        self.remove = MethodType(self.prop.fremove, self.type)\
+            if self.prop.fremove else self.default_remove
         return None
 
     def default_related(self, resource, query_params, request):
@@ -270,13 +273,10 @@ class BoundToManyRelationship(BoundRelationship):
         """
         raise NotImplementedError()
 
-    def default_clear(self, resource, request):
+    def default_remove(self, resource, data, removed_relatives, request):
         """
-        Called, if no *clear* method has been defined.
+        Called, if no *remove* method has been defined.
 
-        The default clear method simply calls the *setter*::
-
-            rel.set(resource, {"data": []}, [], request)
+        The default implementation raises a :exc:`NotImplementedError` error.
         """
-        self.set(resource, {"data": []}, [], request)
-        return None
+        raise NotImplementedError()
