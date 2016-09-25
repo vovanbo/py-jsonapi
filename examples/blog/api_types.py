@@ -172,7 +172,7 @@ class UserAPI(jsonapi.base.schema.Type):
         session.commit()
         return user
 
-    def clear_relationship(self, relname, user, request):
+    def remove_relationship(self, relname, user, data, request):
         """
         DELETE /api/User/<id>/relationships/<relname>
 
@@ -338,7 +338,7 @@ class PostAPI(jsonapi.base.schema.Type):
         session.commit()
         return post
 
-    def clear_relationship(self, relname, post, request):
+    def remove_relationship(self, relname, post, data, request):
         """
         DELETE /api/Post/<id>/relationships/<relname>
         """
