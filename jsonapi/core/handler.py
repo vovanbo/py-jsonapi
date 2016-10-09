@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.base.handler
+jsonapi.core.handler
 ====================
 
 The JSON API specification knows four different endpoint types:
@@ -35,7 +35,7 @@ The JSON API specification knows four different endpoint types:
 
 This module contains the handlers, which implement the logic for handling
 a request to one of those endpoints, based on a
-:class:`~jsonapi.base.schema.type.Type`.
+:class:`~jsonapi.core.schema.type.Type`.
 """
 
 # std
@@ -70,9 +70,9 @@ class Handler(object):
     """
     The interface for request handlers.
 
-    :arg ~jsonapi.base.api.API api:
+    :arg ~jsonapi.core.api.API api:
         The API, which owns this handler.
-    :arg ~jsonapi.base.schema.Type type_:
+    :arg ~jsonapi.core.schema.Type type_:
         The Type, which is associated with this handler.
     """
 
@@ -124,7 +124,7 @@ class CollectionHandler(Handler):
 
     def get(self, request):
         """
-        :seealso: :meth:`~jsonapi.base.schema.type.Type.get_collection`
+        :seealso: :meth:`~jsonapi.core.schema.type.Type.get_collection`
         :seealso: http://jsonapi.org/format/#fetching-resources
         """
         # Fetch the resources
@@ -163,7 +163,7 @@ class CollectionHandler(Handler):
 
     def post(self, request):
         """
-        :seealso: :meth:`~jsonapi.base.schema.type.Type.create_resource`
+        :seealso: :meth:`~jsonapi.core.schema.type.Type.create_resource`
         :seealso: http://jsonapi.org/format/#crud-creating
 
         .. todo::
@@ -210,7 +210,7 @@ class ResourceHandler(Handler):
 
     def get(self, request):
         """
-        :seealso: :meth:`~jsonapi.base.schema.type.Type.get_resource`
+        :seealso: :meth:`~jsonapi.core.schema.type.Type.get_resource`
         :seealso: http://jsonapi.org/format/#fetching-resources
         """
         # Fetch the resource
@@ -237,7 +237,7 @@ class ResourceHandler(Handler):
 
     def patch(self, request):
         """
-        :seealso: :meth:`~jsonapi.base.schema.type.Type.update_resource`
+        :seealso: :meth:`~jsonapi.core.schema.type.Type.update_resource`
         :seealso: http://jsonapi.org/format/#crud-updating
 
         .. todo::
@@ -274,7 +274,7 @@ class ResourceHandler(Handler):
     def delete(self, request):
         """
         :seealso: http://jsonapi.org/format/#crud-deleting
-        :seealso: :meth:`~jsonapi.base.schema.type.Type.delete_resource`
+        :seealso: :meth:`~jsonapi.core.schema.type.Type.delete_resource`
 
         .. todo::
 
@@ -306,7 +306,7 @@ class RelationshipHandler(Handler):
 
     def get(self, request):
         """
-        :seealso: :meth:`~jsonapi.base.schema.type.Type.serialize_relationship`
+        :seealso: :meth:`~jsonapi.core.schema.type.Type.serialize_relationship`
         :seealso: http://jsonapi.org/format/#fetching-relationships
         """
         # Get the resource
@@ -330,7 +330,7 @@ class RelationshipHandler(Handler):
 
     def patch(self, request):
         """
-        :seealso: :meth:`~jsonapi.base.schema.type.Type.update_relationship`
+        :seealso: :meth:`~jsonapi.core.schema.type.Type.update_relationship`
         :seealso: http://jsonapi.org/format/#crud-updating-relationships
 
         .. todo::
@@ -378,7 +378,7 @@ class ToManyRelationshipHandler(RelationshipHandler):
 
     def post(self, request):
         """
-        :seealso: :meth:`~jsonapi.base.schema.type.Type.extend_relationship`
+        :seealso: :meth:`~jsonapi.core.schema.type.Type.extend_relationship`
         :seealso: http://jsonapi.org/format/#crud-updating-relationships (POST)
         """
         if request.content_type[0] != "application/vnd.api+json":
@@ -407,7 +407,7 @@ class ToManyRelationshipHandler(RelationshipHandler):
 
     def delete(self, request):
         """
-        :seealso: :meth:`~jsonapi.base.schema.type.Type.remove_relationship`
+        :seealso: :meth:`~jsonapi.core.schema.type.Type.remove_relationship`
         :seealso: http://jsonapi.org/format/#crud-updating-relationships (DELETE)
         """
         if request.content_type[0] != "application/vnd.api+json":
@@ -454,7 +454,7 @@ class ToOneRelatedHandler(RelatedHandler):
 
     def get(self, request):
         """
-        :seealso: :meth:`~jsonapi.base.schema.type.Type.get_related`
+        :seealso: :meth:`~jsonapi.core.schema.type.Type.get_related`
         :seealso: http://jsonapi.org/format/#fetching-includes
         """
         # Get the resource
@@ -495,7 +495,7 @@ class ToManyRelatedHandler(RelatedHandler):
 
     def get(self, request):
         """
-        :seealso: :meth:`~jsonapi.base.schema.type.Type.get_related`
+        :seealso: :meth:`~jsonapi.core.schema.type.Type.get_related`
         :seealso: http://jsonapi.org/format/#fetching-includes
         """
         # Get the resource

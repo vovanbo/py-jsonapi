@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.base.request
+jsonapi.core.request
 ====================
 
 This module contains a class for representing HTTP requests. It helps to get
@@ -53,7 +53,7 @@ __all__ = [
 class Request(object):
     """
     Wraps a request object, which can be used to call an API's
-    :meth:`~jsonapi.base.api.API.handle_request` method.
+    :meth:`~jsonapi.core.api.API.handle_request` method.
 
     :arg str uri:
         The requested URI
@@ -63,7 +63,7 @@ class Request(object):
         The HTTP request headers
     :arg bytes body:
         The HTTP request body
-    :arg jsonapi.base.api.API api:
+    :arg jsonapi.core.api.API api:
         The api object, which handles the request (can be set later)
     :arg dict settings:
         A dictionary, containing custom information associated with the
@@ -79,8 +79,8 @@ class Request(object):
         self.body = body
         assert isinstance(body, (bytes, str))
 
-        #: Automatically set by the :meth:`~jsonapi.base.api.API.handle_request`
-        #: method from the responsible :class:`~jsonapi.base.api.API`.
+        #: Automatically set by the :meth:`~jsonapi.core.api.API.handle_request`
+        #: method from the responsible :class:`~jsonapi.core.api.API`.
         self.api = api
 
         #: Contains parameters, which are encoded into the URI.
@@ -88,7 +88,7 @@ class Request(object):
         #: contains the id ``{'id': '1'}``.
         #:
         #: This dictionary will be populated in the
-        #: :meth:`~jsonapi.base.api.API.handle_request` method.
+        #: :meth:`~jsonapi.core.api.API.handle_request` method.
         self.japi_uri_arguments = dict()
 
         #: A simple dictionary, which you can use to store stuff associated
@@ -393,7 +393,7 @@ class Request(object):
     def json(self):
         """
         Decodes the body assuming, that it is a JSON document. This method
-        uses the API's :meth:`~jsonapi.base.api.API.load_json` method.
+        uses the API's :meth:`~jsonapi.core.api.API.load_json` method.
 
         :raises BadRequest:
             If the API is **not** in debug mode and the body is not a valid

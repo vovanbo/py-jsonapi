@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.base.api
+jsonapi.core.api
 ================
 
 The API knows all supported types and is able to handle a JSON API request.
@@ -157,7 +157,7 @@ class API(object):
 
     def get_type(self, o, default=ARG_DEFAULT):
         """
-        Returns the :class:`~jsonapi.base.schema.type.Type` associated with *o*.
+        Returns the :class:`~jsonapi.core.schema.type.Type` associated with *o*.
         *o* must be either a typename, a resource class or resource object.
 
         :arg o:
@@ -167,7 +167,7 @@ class API(object):
         :raises KeyError:
             If the typename is not associated with a *Type* and no default
             argument is given.
-        :rtype: jsonapi.base.schema.type.Type
+        :rtype: jsonapi.core.schema.type.Type
         """
         type_ = self._types.get(o)\
             or self._resource_class_to_type.get(o)\
@@ -198,10 +198,10 @@ class API(object):
     def add_type(self, type, **kargs):
         """
         Adds the *type* to the API. This method will call
-        :meth:`~jsonapi.base.schema.type.Type.init_api` to bind the *type*
+        :meth:`~jsonapi.core.schema.type.Type.init_api` to bind the *type*
         to the API.
 
-        :type type: ~jsonapi.base.schema.type.Type
+        :type type: ~jsonapi.core.schema.type.Type
         :arg type: A *Type* instance
         """
         # Our default request handler.
@@ -320,7 +320,7 @@ class API(object):
 
     def prepare_request(self, request):
         """
-        Called, before the :meth:`~jsonapi.base.handler.Handler.handle`
+        Called, before the :meth:`~jsonapi.core.handler.Handler.handle`
         of the request handler is called.
 
         You *can* overridde this method to modify the request. (Add some
@@ -335,10 +335,10 @@ class API(object):
         This method should be overridden for integration in other frameworks.
         It is the **entry point** for all requests handled by this library.
 
-        :type request: ~jsonapi.base.request.Request
+        :type request: ~jsonapi.core.request.Request
         :arg request: The request, which should be handled.
 
-        :rtype: ~jsonapi.base.request.Response
+        :rtype: ~jsonapi.core.request.Response
         """
         assert request.api is None or request.api is self
         request.api = self
@@ -410,7 +410,7 @@ class API(object):
 
         :arg resource:
             A resource instance, whichs type is known to the API.
-        :arg ~jsonapi.base.request.Request request:
+        :arg ~jsonapi.core.request.Request request:
             The current request context
 
         :rtype: dict
@@ -441,7 +441,7 @@ class API(object):
 
         :arg list ids:
             A list of identifier tuples
-        :arg ~jsonapi.base.request.Request:
+        :arg ~jsonapi.core.request.Request:
             The request context
 
         :rtype: dict
@@ -484,7 +484,7 @@ class API(object):
             A list of resources of the **same type**
         :arg list include:
             A list of include paths, as given by
-            :attr:`~jsonapi.base.request.Request.japi_include`.
+            :attr:`~jsonapi.core.request.Request.japi_include`.
 
         :rtype: list
         :returns:

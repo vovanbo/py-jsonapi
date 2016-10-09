@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.base.errors
+jsonapi.core.errors
 ===================
 
 This module implements the base class for all JSON API exceptions:
@@ -258,14 +258,14 @@ class ErrorList(Exception):
 
 def error_to_response(error, dump_json=None):
     """
-    Converts an :class:`Error` to a :class:`~jsonapi.base.response.Response`.
+    Converts an :class:`Error` to a :class:`~jsonapi.core.response.Response`.
 
     :arg Error error:
         The error, which is converted into a response.
     :arg callable dump_json:
         The json serializer, which is used to serialize the error.
 
-    :rtype: jsonapi.base.request.Request
+    :rtype: jsonapi.core.request.Request
     """
     assert isinstance(error, (Error, ErrorList))
 
@@ -466,7 +466,7 @@ class InvalidDocument(BadRequest):
     typename.
 
     :seealso: http://jsonapi.org/format/#document-structure
-    :seealso: :mod:`jsonapi.base.validation`
+    :seealso: :mod:`jsonapi.core.validation`
     """
 
 

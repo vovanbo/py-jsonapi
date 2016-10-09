@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.base
+jsonapi.core
 ============
 
 .. sidebar:: Asyncio Version

@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.base.validation
+jsonapi.core.validation
 =======================
 
 This module contains validators for the different JSON API document types. If a

@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.base.response
+jsonapi.core.response
 =====================
 """
 

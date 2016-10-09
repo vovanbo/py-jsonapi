@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.base.schema.type
+jsonapi.schema.type
 ========================
 """
 
@@ -215,12 +215,12 @@ class Type(metaclass=TypeMeta):
 
     Everything else (the fields) must be implemented using the descriptors:
 
-    *   :class:`~jsonapi.base.schema.id.ID`
-    *   :class:`~jsonapi.base.schema.attribute.Attribute`
-    *   :class:`~jsonapi.base.schema.to_one_relationship.ToOneRelationship`
-    *   :class:`~jsonapi.base.schema.to_many_relationship.ToManyRelationship`
-    *   :class:`~jsonapi.base.schema.meta.Meta`
-    *   :class:`~jsonapi.base.schema.link.Link`
+    *   :class:`~jsonapi.schema.id.ID`
+    *   :class:`~jsonapi.schema.attribute.Attribute`
+    *   :class:`~jsonapi.schema.to_one_relationship.ToOneRelationship`
+    *   :class:`~jsonapi.schema.to_many_relationship.ToManyRelationship`
+    *   :class:`~jsonapi.schema.meta.Meta`
+    *   :class:`~jsonapi.schema.link.Link`
     """
 
     def __init__(self):
@@ -232,7 +232,7 @@ class Type(metaclass=TypeMeta):
         """
         Called, when the *Type* instance is registered on an API.
 
-        :seealso: :meth:`~jsonapi.base.api.API.add_type`
+        :seealso: :meth:`~jsonapi.core.api.API.add_type`
         """
         self.api = api
         self.uri = uri
@@ -250,7 +250,7 @@ class Type(metaclass=TypeMeta):
         Creates the JSON API resource object.
 
         :arg resource:
-        :arg ~jsonapi.base.request.Request request:
+        :arg ~jsonapi.core.request.Request request:
         """
         d = OrderedDict()
         d.update(self.serialize_id(resource))
@@ -297,7 +297,7 @@ class Type(metaclass=TypeMeta):
         Creates the JSON API attributes object.
 
         :arg resource:
-        :arg ~jsonapi.base.request.Request request:
+        :arg ~jsonapi.core.request.Request request:
         """
         fields = request.japi_fields.get(self.typename)
 
@@ -316,7 +316,7 @@ class Type(metaclass=TypeMeta):
         Creates the JSON API relationships object.
 
         :arg resource:
-        :arg ~jsonapi.base.request.Request request:
+        :arg ~jsonapi.core.request.Request request:
         :arg require_data:
             A list with the names of all relationships, for which the resource
             linkage (*data* member) *must* be included.
@@ -344,7 +344,7 @@ class Type(metaclass=TypeMeta):
         :arg str relname:
             The name of the relationship
         :arg resource:
-        :arg ~jsonapi.base.request.Request request:
+        :arg ~jsonapi.core.request.Request request:
         :arg bool require_data:
             If true, the resource linkage (the related ids) are included.
         """
@@ -399,7 +399,7 @@ class Type(metaclass=TypeMeta):
         Creates the JSON API links object of the resource *resource*.
 
         :arg request: The request context
-        :arg ~jsonapi.base.request.Request request:
+        :arg ~jsonapi.core.request.Request request:
         """
         d = OrderedDict([])
         for name, link in self.links.items():
@@ -450,7 +450,7 @@ class Type(metaclass=TypeMeta):
 
         :arg dict data:
             The JSON API resource object
-        :arg ~jsonapi.base.request.Request request:
+        :arg ~jsonapi.core.request.Request request:
         :returns:
             The new resource
         """
@@ -502,7 +502,7 @@ class Type(metaclass=TypeMeta):
         :arg resource:
             The resource **object** or the **id** of the resource object,
             which should be updated.
-        :arg ~jsonapi.base.request.Request request:
+        :arg ~jsonapi.core.request.Request request:
         :arg dict data:
             JSON API resource object
 
@@ -809,7 +809,7 @@ class Type(metaclass=TypeMeta):
         :arg dict query_params:
             A dictionary with the query parameters (*filters*, *limit*,
             *offset*, ...)
-        :arg ~jsonapi.base.request.Request request:
+        :arg ~jsonapi.core.request.Request request:
             The request context
 
         :returns:

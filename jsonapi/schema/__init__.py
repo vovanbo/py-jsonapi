@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.base.schema
+jsonapi.schema
 ===================
 
 This module contains the essence of *py-jsonapi*: The schema/type definition.

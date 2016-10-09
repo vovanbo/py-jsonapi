@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.base.schema.relationship
+jsonapi.schema.relationship
 ================================
 """
 
@@ -202,7 +202,7 @@ class BoundRelationship(BoundWriteableProperty):
     @property
     def remote_type(self):
         """
-        The :class:`~jsonapi.base.schema.type.Type` of the remote class.
+        The :class:`~jsonapi.schema.type.Type` of the remote class.
         """
         from .type import Type
 

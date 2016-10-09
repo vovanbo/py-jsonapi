@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.base.schema.base_property
+jsonapi.schema.base_property
 =================================
 """
 

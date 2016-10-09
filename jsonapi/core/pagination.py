@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.base.pagination
+jsonapi.core.pagination
 =======================
 
 This module contains a helper for the pagination feature:
@@ -86,7 +86,7 @@ class Pagination(object):
     def from_request(cls, request, total_resources):
         """
         Shortcut for creating a Pagination object based on a jsonapi
-        :class:`~jsonapi.base.request.Request`.
+        :class:`~jsonapi.core.request.Request`.
         """
         assert request.japi_paginate
         return cls(

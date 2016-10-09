@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.base.schema.to_many_relationship
+jsonapi.schema.to_many_relationship
 ========================================
 """
 
@@ -81,7 +81,7 @@ class ToManyRelationship(Relationship):
 
     The *query_params* dictionary contains filters, include and pagination
     parameters. If you ignore them, you must raise a
-    :exc:`~jsonapi.base.errors.BadRequest` exception or something similar.
+    :exc:`~jsonapi.core.errors.BadRequest` exception or something similar.
 
     .. code-block:: python3
 

@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.base.utilities
+jsonapi.core.utilities
 ======================
 
 This module contains some helpers, which are frequently needed in different
@@ -158,7 +158,7 @@ def load_relationships_object(d, api, request):
 
     :arg dict d:
         A JSON API relationships object
-    :arg ~jsonapi.base.api.API api:
+    :arg ~jsonapi.core.api.API api:
         An API, which knows all types mentioned in *d*.
 
     :rtype: dict
@@ -200,7 +200,7 @@ __auto_type_factories = []
 def register_auto_type(func):
     """
     Registers a new *auto_type()* function. This function receives a *model*
-    and must either return a new :class:`~jsonapi.base.schema.type.Type`
+    and must either return a new :class:`~jsonapi.core.schema.type.Type`
     *class* (not an instance!), a list of *Type* classes or *None*.
 
     This function can be used as decorator::
@@ -224,8 +224,8 @@ def auto_type(model, api=None):
     we will also register the new Type.
 
     :arg model:
-    :arg ~jsonapi.base.api.API api:
-    :rtype: ~jsonapi.base.schema.Type
+    :arg ~jsonapi.core.api.API api:
+    :rtype: ~jsonapi.core.schema.Type
     """
     warnings.warn(
         "The *auto_type()* feature is still experimental. Use with care.",

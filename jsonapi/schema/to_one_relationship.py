@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.base.schema.to_one_relationship
+jsonapi.schema.to_one_relationship
 =======================================
 """
 

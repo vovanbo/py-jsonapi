@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.base.schema.id
+jsonapi.schema.id
 ======================
 """
 

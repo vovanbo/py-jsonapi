@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.base.schema.attribute
+jsonapi.schema.attribute
 =============================
 """
 
@@ -74,7 +74,7 @@ class Attribute(WriteableProperty):
 
     If you don't implement a *setter*, the attribute is *read-only* and each
     attempt to change its value will result in a
-    :exc:`~jsonapi.base.errors.ReadOnlyField` exception.
+    :exc:`~jsonapi.core.errors.ReadOnlyField` exception.
     """
 
     def __init__(self, *, fget=None, fset=None, name="", doc=""):

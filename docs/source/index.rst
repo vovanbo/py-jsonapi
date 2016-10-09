@@ -11,7 +11,8 @@ Welcome to py-jsonapi's documentation!
 
     installation
     tutorial/index
-    base/index
+    core/index
+    schema/index
     extensions
 
     contribute
