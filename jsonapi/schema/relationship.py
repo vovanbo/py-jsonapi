@@ -36,8 +36,8 @@ import warnings
 
 # local
 from .base_property import WriteableProperty, BoundWriteableProperty
-from ..errors import ReadOnlyField
-from ..utilities import Symbol
+from jsonapi.core.errors import ReadOnlyField
+from jsonapi.core.utilities import Symbol
 
 
 __all__ = [

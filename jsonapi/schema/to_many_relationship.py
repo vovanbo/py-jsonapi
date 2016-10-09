@@ -31,7 +31,7 @@ jsonapi.base.schema.to_many_relationship
 from .relationship import (
     Relationship, BoundRelationship, RelationshipNotLoaded
 )
-from ..errors import BadRequest
+from jsonapi.core.errors import BadRequest
 
 
 __all__ = [

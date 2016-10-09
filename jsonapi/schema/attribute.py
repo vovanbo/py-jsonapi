@@ -29,7 +29,7 @@ jsonapi.base.schema.attribute
 
 # local
 from .base_property import WriteableProperty, BoundWriteableProperty
-from ..errors import ReadOnlyField
+from jsonapi.core.errors import ReadOnlyField
 
 
 __all__ = [

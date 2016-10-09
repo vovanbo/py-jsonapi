@@ -29,7 +29,7 @@ jsonapi.base.schema.id
 
 # local
 from .base_property import WriteableProperty, BoundWriteableProperty
-from ..errors import Forbidden
+from jsonapi.core.errors import Forbidden
 
 
 __all__ = [

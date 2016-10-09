@@ -39,8 +39,8 @@ from .meta import Meta
 from .relationship import RelationshipNotLoaded
 from .to_one_relationship import ToOneRelationship
 from .to_many_relationship import ToManyRelationship
-from .. import errors
-from .. import utilities
+from jsonapi.core import errors
+from jsonapi.core import utilities
 
 
 LOG = logging.getLogger(__file__)

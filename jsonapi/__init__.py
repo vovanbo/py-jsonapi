@@ -23,5 +23,6 @@
 # SOFTWARE.
 
 # local
-from . import base
+from . import core
+from . import schema
 from . import version

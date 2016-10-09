@@ -48,7 +48,6 @@ compliant API.
     pagination
     request
     response
-    schema/index
     utilities
     validation
 """
@@ -59,6 +58,5 @@ from . import errors
 from . import handler
 from . import request
 from . import response
-from . import schema
 from . import utilities
 from . import validation
