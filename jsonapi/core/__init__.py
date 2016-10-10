@@ -43,6 +43,7 @@ compliant API.
     :maxdepth: 2
 
     api
+    encoder
     errors
     handler
     pagination
