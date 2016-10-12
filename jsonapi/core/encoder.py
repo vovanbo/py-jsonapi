@@ -35,8 +35,8 @@ to define an encoder very **easily** in a few lines of code::
     class ArticleEncoder(Encoder):
         resource_class = Article
 
-        title = attribute()
-        author = relationship(to_one=True)
+        title = Attribute()
+        author = ToOneRelationship()
 
 But if you want, you are free to fine-tune the serialization::
 
@@ -44,34 +44,39 @@ But if you want, you are free to fine-tune the serialization::
         resource_class = Article
         typename = "article"
 
-        @attribute()
+        def id(self, article):
+            return str(article.id)
+
+        @Attribute(name="TITLE")
         def title(self, article, request):
             return article.title
 
-        @relationship(to_one=True):
+        @ToOneRelationship()
         def author(self, article, request, *, require_data=False):
             d = dict()
             d["data"] = {"type": "User", "id": str(article.author_id)}
             return d
 
-        @meta()
+        @Meta()
         def cache_age(self, article, request):
             return "42 minutes"
 
-        @link()
+        @Link()
         def image_sprite(self, article, request):
             return "/static/article-images/{}".format(article.id)
 """
 
 # std
 import logging
+import types
 
 
 __all__ = [
-    "attribute",
-    "relationship",
-    "link",
-    "meta",
+    "Attribute",
+    "ToOneRelationship",
+    "ToManyRelationship",
+    "Meta",
+    "Link",
     "Encoder",
 ]
 
@@ -79,63 +84,211 @@ __all__ = [
 LOG = logging.getLogger(__file__)
 
 
-def attribute(name=None):
+class EncoderMethod(object):
     """
-    Marks an :class:`Encoder` method as an attribute.
+    A method/attribute, which contains information how an attribute,
+    relationship, meta or link should be serialized. An EncoderMethod
+    is always defined on a *class*. When it :meth:`bound <bind>`, it is
+    associated with a specific encoder (class vs instance).
+
+    :arg str name:
+        The name of the encoded object in the JSON API document.
+    :arg callable fencode:
+        The method, which JSON API encodes a value and returns it.
     """
-    def decorator(f):
-        f.jsonapi_encoder = {
-            "is_attribute": True,
-            "name": name or f.__name__
-        }
-        return f
-    return decorator
+
+    def __init__(self, name=None, fencode=None):
+        """
+        """
+        #: The name of the encoded object in the JSON API document.
+        #: (The name of the field, link or meta value)
+        self.name = name
+
+        #: The method on an Encoder, which is used to get and serialize the
+        #: value.
+        self.fencode = fencode
+
+        #: The name of the encoder method.
+        self.key = None
+        return None
+
+    def bind(self, encoder):
+        raise NotImplementedError()
+
+    def __call__(self, fencode):
+        return self.encoder(fencode)
+
+    def encoder(self, fencode):
+        self.fencode = fencode
+        self.name = self.name or fencode.__name__
+        return self
 
 
-def relationship(name=None):
+class BoundEncoderMethod(object):
     """
-    Marks an :class:`Encoder` method as a relationship.
-    """
-    def decorator(f):
-        f.jsonapi_encoder = {
-            "is_relationship": True,
-            "name": name or f.__name__
-        }
-        return f
-    return decorator
+    The counterpart to :class:`EncoderMethod`. This class is used to bind
+    an :class:`EncoderMethod` to a specific encoder *instance*.
 
-def meta(name=None):
+    Instances of this class behave like methods defined on an encoder instance.
+
+    :arg EncoderMethod meth:
+        The method, which is bound to the *encoder*.
+    :arg Encoder encoder:
+        The *meth* is bound to this encoder.
     """
-    Marks an :class:`Encoder` method as a meta member.
-    """
-    def decorator(f):
-        f.jsonapi_encoder = {
-            "is_meta": True,
-            "name": name or f.__name__
-        }
-        return f
-    return decorator
+
+    def __init__(self, meth, encoder):
+        self.meth = meth
+        self.encoder = encoder
+        return None
+
+    def __call__(self, *args, **kargs):
+        if self.fencode:
+            return self.meth.fencode(self.encoder, *args, **kargs)
+        else:
+            return self.default_encode(*args, **kargs)
+
+    def default_encode(self, *args, **kargs):
+        """
+        Used as fallback for :attr:`EncoderMethod.fencode`.
+        """
+        raise NotImplementedError()
 
 
-def link(name=None):
-    """
-    Marks an :class:`Encoder` method as a member of the links object.
-    """
-    def decorator(f):
-        f.jsonapi_encoder = {
-            "is_link": True,
-            "name": name or f.__name__
-        }
-        return f
-    return decorator
+# Attributes
+# ----------
 
+class Attribute(EncoderMethod):
+
+    def bind(self, encoder):
+        return BoundAttribute(self, encoder)
+
+
+class BoundAttribute(BoundEncoderMethod):
+
+    def default_encode(self, resource, request):
+        return getattr(resource, self.key)
+
+
+# Relationships
+# -------------
+
+class ToOneRelationship(EncoderMethod):
+
+    def bind(self, encoder):
+        return BoundToOneRelationship(self, encoder)
+
+
+class BoundToOneRelationship(BoundEncoderMethod):
+
+    def default_encode(self, resource, request, *, require_data=False):
+        d = dict()
+
+        d["links"] = dict()
+        d["links"]["self"] = self.link_self(resource)
+        d["links"]["related"] = self.link_related(resource)
+
+        if require_data:
+            related = getattr(resource, self.key)
+            related = self.encoder.api.ensure_identifier_object(related)
+            d["data"] = related
+        return d
+
+    def link_self(self, resource):
+        resource_id = self.encoder.id(resource)
+        base_uri = self.encoder.api.base_uri
+        link_self = base_uri + "/" + resource_id + "/relationships/" + self.name
+        return link_self
+
+    def link_related(self, resource):
+        resource_id = self.encoder.id(resource)
+        base_uri = self.encoder.api.base_uri
+        link_related = base_uri + "/" + resource_id + "/" + self.name
+        return link_related
+
+
+class ToManyRelationship(EncoderMethod):
+
+    def bind(self, encoder):
+        return BoundToManyRelationship(self, encoder)
+
+
+class BoundToManyRelationship(BoundEncoderMethod):
+
+    def default_encode(
+        self, resource, request, *, require_data=False, pagination=None
+        ):
+        if pagination:
+            raise PaginationNotSupported()
+
+        d = dict()
+
+        d["links"] = dict()
+        d["links"]["self"] = self.link_self(resource)
+        d["links"]["related"] = self.link_related(resource)
+
+        if require_data:
+            related = getattr(resource, self.key)
+            related = [
+                    self.encoder.api.ensure_identifier_object(resource)\
+                    for resource in related
+            ]
+            d["data"] = related
+        return d
+
+    def link_self(self, resource):
+        resource_id = self.encoder.id(resource)
+        base_uri = self.encoder.api.base_uri
+        link_self = base_uri + "/" + resource_id + "/relationships/" + self.name
+        return link_self
+
+    def link_related(self, resource):
+        resource_id = self.encoder.id(resource)
+        base_uri = self.encoder.api.base_uri
+        link_related = base_uri + "/" + resource_id + "/" + self.name
+        return link_related
+
+
+# Meta
+# ----
+
+class Meta(EncoderMethod):
+
+    def bind(self, encoder):
+        return BoundMeta(self, encoder)
+
+
+class BoundMeta(BoundEncoderMethod):
+
+    def default_encode(self, resource, request):
+        return getattr(resource, self.key)
+
+
+# Link
+# ----
+
+class Link(EncoderMethod):
+
+    def bind(self, encoder):
+        return BoundLink(self, encoder)
+
+
+class BoundLink(BoundEncoderMethod):
+
+    def default_encode(self, resource, request):
+        return getattr(resource, self.key)
+
+
+# Encoder
+# -------
 
 class Encoder(object):
     """
     .. hint::
 
         You should avoid database interactions in the encoding process for
-        performance reasons.
+        performance reasons. All attributes and relationships, which are going
+        to be encoded should have already been loaded.
 
     The base class for a JSON API encoder. The encoder takes a resource
     and creates different JSON API document based on it.
@@ -177,31 +330,30 @@ class Encoder(object):
 
     def __detect_methods(self):
         """
-        Detects methods, that has been marked with
-
-        *   :func:`attribute`,
-        *   :func:`relationship`,
-        *   :func:`meta`
-        *   or :func:`link`
-
-        and adds them to an internal container.
+        Detects :class:`EncoderMethod`s and binds them to this instance.
         """
-        for prop in dir(self):
-            prop = getattr(self, prop)
+        for key in dir(self):
+            prop = getattr(self, key)
 
-            if not hasattr(prop, "jsonapi_encoder"):
+            if not isinstance(prop, EncoderMethod):
                 continue
 
-            conf = prop.jsonapi_encoder
+            print(key, prop)
 
-            if conf.get("is_attribute"):
-                self.__attributes[conf["name"]] = prop
-            elif conf.get("is_relationship"):
-                self.__relationships[conf["name"]] = prop
-            elif conf.get("is_link"):
-                self.__links[conf["name"]] = prop
-            elif conf.get("is_meta"):
-                self.__meta[conf["name"]] = prop
+            prop.name = prop.name or key
+            prop.key = key
+
+            bound = prop.bind(self)
+            setattr(self, key, bound)
+
+            if isinstance(prop, Attribute):
+                self.__attributes[prop.name] = bound
+            elif isinstance(prop, (ToOneRelationship, ToManyRelationship)):
+                self.__relationships[prop.name] = bound
+            elif isinstance(prop, Meta):
+                self.__meta[prop.name] = bound
+            elif isinstance(prop, Link):
+                self.__links[prop.name] = bound
         return None
 
     @property
@@ -227,8 +379,8 @@ class Encoder(object):
         **Can be overridden**.
 
         Returns the id (string) of the resource. The default implementation
-        looks for a property ``resource.id`` or an id method ``resource.id()``,
-        ``resource.get_id()``.
+        looks for a property ``resource.id``, an id method ``resource.id()``,
+        ``resource.get_id()`` or an key ``resource["id"]``.
 
         :arg resource:
             A resource object
@@ -243,6 +395,9 @@ class Encoder(object):
             resource_id = str(resource_id)
         elif hasattr(resource, "get_id"):
             resource_id = resource.get_id()
+            resource_id = str(resource_id)
+        elif "id" in resource:
+            resource_id = resource["id"]
             resource_id = str(resource_id)
         else:
             raise Exception("Could not determine the resource id.")
@@ -388,12 +543,14 @@ class Encoder(object):
             of the *resource*
         """
         rel = self.__relationships[relname]
-        if pagination:
-            ret = rel(
-                resource, request, require_data=require_data, pagination=pagination
-            )
-        else:
+
+        if isinstance(rel, ToOneRelationship):
             ret = rel(resource, request, require_data=require_data)
+        else:
+            ret = rel(
+                resource, request, require_data=require_data,
+                pagination=pagination
+            )
         return ret
 
     def serialize_links(self, resource, request):
@@ -435,3 +592,13 @@ class Encoder(object):
         for name, meta in self.__meta.items():
             d[name] = meta(resource, request)
         return d
+
+
+
+class ArticleEncoder(Encoder):
+
+    @Attribute()
+    def title(self, article, request):
+        return article["title"]
+
+enc = ArticleEncoder()
