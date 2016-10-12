@@ -106,7 +106,9 @@ class EncoderMethod(object):
 
         #: The method on an Encoder, which is used to get and serialize the
         #: value.
-        self.fencode = fencode
+        self.fencode = None
+        if fencode:
+            self.encoder(fencode)
 
         #: The name of the encoder method.
         self.key = None
