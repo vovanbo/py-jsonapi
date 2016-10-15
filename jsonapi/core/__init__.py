@@ -51,6 +51,7 @@ compliant API.
     response
     utilities
     validation
+    validator
 """
 
 # local

@@ -26,23 +26,21 @@
 jsonapi.core.validation
 =======================
 
-This module contains validators for the different JSON API document types. If a
-request contains an invalid document, a validator detects the error source and
-creates a verbose exception with a *source-pointer*.
+This module contains *generic* validation functions for all JSON API document
+types. All validators will throw an :exc:`~jsonapi.core.errors.InvalidDocument`
+exception with a *source-pointer*, if a document is invalid an.
 
 All validators only assert the correct document structure, e.g.: An identifier
 object must contain an *id* and a *type* attribute. However, the validator
 does not check, if the type exists.
 
+If you want more precise validators, check out the :mod:`jsonapi.core.validator`
+module, which helps you building an enhanced validator easily.
+
 .. seealso::
 
     *   http://jsonapi.org/format/#document-structure
     *   http://jsonapi.org/format/#errors
-
-.. todo::
-
-    We could use the schames (Type) to check if the attributes exist in a
-    resource object and also validate their type.
 """
 
 # local
