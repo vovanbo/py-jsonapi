@@ -37,6 +37,8 @@ to define an encoder very **easily** in a few lines of code::
 
         title = Attribute()
         author = ToOneRelationship()
+        comments = ToManyRelationship()
+
 
 But if you want, you are free to fine-tune the serialization::
 
@@ -57,6 +59,20 @@ But if you want, you are free to fine-tune the serialization::
             d["data"] = {"type": "User", "id": str(article.author_id)}
             return d
 
+        @ToManyRelationship()
+        def comments(self, article, request, *, require_data=False, pagination=None):
+            if pagination:
+                raise BadRequest(
+                    detail="The comment relationship does not support pagination."
+                )
+
+            d = dict()
+            d["data"] = [
+                {"type": "Comment", "id": str(comment_id)}\\
+                for comment_id in article.comment_ids
+            ]
+            return d
+
         @Meta()
         def cache_age(self, article, request):
             return "42 minutes"
@@ -72,7 +88,9 @@ import types
 
 
 __all__ = [
+    "EncoderMethod",
     "Attribute",
+    "Relationship",
     "ToOneRelationship",
     "ToManyRelationship",
     "Meta",
