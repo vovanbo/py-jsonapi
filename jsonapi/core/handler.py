@@ -47,7 +47,7 @@ import logging
 from . import errors
 from . import validation
 from .response import Response
-from .pagination import Pagination
+from .pagination import NumberSize as Pagination
 
 
 __all__ = [

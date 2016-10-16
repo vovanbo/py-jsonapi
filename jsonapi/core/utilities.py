@@ -61,6 +61,12 @@ class Symbol(object):
         self.name = name
         return None
 
+    def __str__(self):
+        return self.name if self.name else self.__repr__(self)
+
+    def __repr__(self):
+        return "Symbol(name={})".format(self.name)
+
     def __eq__(self, other):
         return other is self
 

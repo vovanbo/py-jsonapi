@@ -26,119 +26,124 @@
 jsonapi.core.pagination
 =======================
 
-This module contains a helper for the pagination feature:
+This module contains helper for the pagination feature:
 http://jsonapi.org/format/#fetching-pagination
+
+We have built-in support for:
+
+*   *limit*, *offset* based pagination (:class:`LimitOffset`),
+*   *number*, *size* based pagination (:class:`NumberSize`),
+*   and *cursor* based pagination (:class:`Cursor`).
+
+All helpers have a similar interface. Here is an example for the
+:class:`NumberSize` pagination:
+
+.. code-block:: python3
+
+    >>> p = NumberSize(
+    ...     uri="http://example.org/api/Article/?sort=date_added&page[size]=5&page[number]=10)",
+    ...     number=2,
+    ...     size=25,
+    ...     total_resources=106
+    )
+    >>> p.json_links()
+    {
+    'first': 'http://example.org/api/Article/?page%5Bsize%5D=25&sort=date_added&page%5Bnumber%5D=0',
+    'last': 'http://example.org/api/Article/?page%5Bsize%5D=25&sort=date_added&page%5Bnumber%5D=4',
+    'next': 'http://example.org/api/Article/?page%5Bsize%5D=25&sort=date_added&page%5Bnumber%5D=3',
+    'prev': 'http://example.org/api/Article/?page%5Bsize%5D=25&sort=date_added&page%5Bnumber%5D=1',
+    'self': 'http://example.org/api/Article/?page%5Bsize%5D=25&sort=date_added&page%5Bnumber%5D=2'
+    }
+    >>> p.meta()
+    {
+    'page-number': 2,
+    'page-size': 25,
+    'total-pages': 4,
+    'total-resources': 106
+    }
 """
 
 # std
+import logging
 import urllib.parse
 
+# local
+from .utilities import Symbol
 
-class Pagination(object):
+
+__all__ = [
+    "DEFAULT_LIMIT",
+    "BasePagination",
+    "LimitOffset",
+    "NumberSize",
+    "Cursor"
+]
+
+LOG = logging.getLogger(__file__)
+
+#: The default number of resources on a page.
+DEFAULT_LIMIT = 25
+
+
+class BasePagination(object):
     """
-    A helper class for the pagination.
-
-    The first page has the number **0**.
-
-    :arg str uri:
-        The uri to the endpoint which provides a collection
-    :arg int current_page:
-        The number of the current page
-    :arg int page_size:
-        The number of resources on a page
-    :arg int total_resources:
-        The total number of resources in the collection
+    The base class for all pagination helpers.
     """
 
-    def __init__(self, uri, current_page, page_size, total_resources):
-        """
-        """
-        self.uri = uri
-        self.parsed_uri = urllib.parse.urlparse(uri)
-        self.query_uri = urllib.parse.parse_qs(self.parsed_uri.query)
-
-        # Get the current page number and size.
-        assert current_page >= 0
-        self.current_page = current_page
-
-        assert page_size >= 1
-        self.page_size = page_size
-
-        # Get the number of resources
-        assert total_resources >= 0
-        self.total_resources = total_resources
-
-        self.total_pages = int(self.total_resources/self.page_size)
-
-        # Build all links
-        self.link_self = self._page_link(self.current_page, self.page_size)
-        self.link_first = self._page_link(0, self.page_size)
-        self.link_last = self._page_link(self.total_pages, self.page_size)
-
-        self.has_prev = (self.current_page > 0)
-        self.link_prev = self._page_link(self.current_page - 1, self.page_size)
-
-        self.has_next = (self.current_page < self.total_pages)
-        self.link_next = self._page_link(self.current_page + 1, self.page_size)
+    def __init__(self, uri):
+        self._uri = uri
+        self._parsed_uri = urllib.parse.urlparse(uri)
+        self._query_uri = urllib.parse.parse_qs(self._parsed_uri.query)
         return None
 
-    @classmethod
-    def from_request(cls, request, total_resources):
-        """
-        Shortcut for creating a Pagination object based on a jsonapi
-        :class:`~jsonapi.core.request.Request`.
-        """
-        assert request.japi_paginate
-        return cls(
-            uri=request.uri, current_page=request.japi_page_number,
-            page_size=request.japi_page_size, total_resources=total_resources
-        )
+    @property
+    def uri(self):
+        return self._uri
 
-    def _page_link(self, page_number, page_size):
-        query = self.query_uri
+    def page_link(self, pagination):
+        """
+        Uses the :attr:`uri` and replaces the *page* query parameters with the
+        values in *pagination*.
+
+        .. code-block:: python3
+
+            pager.page_link({"offset": 10, "limit": 5})
+            pager.page_link({"number": 10, "size": 5})
+            pager.page_link({"cursor": 1, "limit": 5})
+            # ...
+
+        :arg dict pagination:
+            Query parameters for the pagination.
+        :rtype: str
+        :returns:
+            The url to the page
+        """
+        query = self._query_uri.copy()
         query.update({
-            "page[number]": page_number,
-            "page[size]": page_size
+            "page[{}]".format(key): str(value) for key, value in pagination.items()
         })
-        query = urllib.parse.urlencode(query)
+        query = urllib.parse.urlencode(query, doseq=True)
 
         uri = "{scheme}://{netloc}{path}?{query}".format(
-            scheme=self.parsed_uri.scheme,
-            netloc=self.parsed_uri.netloc,
-            path=self.parsed_uri.path,
+            scheme=self._parsed_uri.scheme,
+            netloc=self._parsed_uri.netloc,
+            path=self._parsed_uri.path,
             query=query
         )
         return uri
 
-    @property
     def json_meta(self):
         """
-        A dictionary, which must be included in the top-level *meta object*. It
-        contains these keys:
+        **Must be overridden.**
 
-        *   *total-pages*
-            The total number of pages
-
-        *   *total-resources*
-            The total number of resources
-
-        *   *page*
-            The number of the current page
-
-        *   *page-size*
-            The page size
+        A dictionary, which must be included in the top-level *meta object*.
         """
-        d = {
-            "total-pages": self.total_pages,
-            "total-resources": self.total_resources,
-            "page": self.current_page,
-            "page-size": self.page_size
-        }
-        return d
+        return dict()
 
-    @property
     def json_links(self):
         """
+        **Must be overridden.**
+
         A dictionary, which must be included in the top-level *links object*. It
         contains these keys:
 
@@ -157,13 +162,354 @@ class Pagination(object):
         *   *next*
             The link to the next page (only set, if a next page exists)
         """
-        d = {
-            "self": self.link_self,
-            "first": self.link_first,
-            "last": self.link_last
-        }
-        if self.has_prev:
-            d["prev"] = self.link_prev
-        if self.has_next:
-            d["next"] = self.link_next
+        raise NotImplementedError()
+
+
+class LimitOffset(BasePagination):
+    """
+    Implements a pagination based on *limit* and *offset* values.
+
+    .. code-block:: text
+
+        /api/Article/?sort=date_added&page[limit]=5&page[offset]=10
+
+    :arg str uri:
+    :arg int limit:
+        The number of resources on a page.
+    :arg int offset:
+        The offset, which leads to the current page.
+    :arg int total_resources:
+        The total number of resources in the collection.
+    """
+
+    def __init__(self, uri, limit, offset, total_resources):
+        super().__init__(uri=uri)
+
+        assert offset >= 0
+        assert total_resources >= 0
+        assert limit > 0
+
+        self.limit = limit
+        self.offset = offset
+        self.total_resources = total_resources
+        return None
+
+    @classmethod
+    def from_uri(
+        self, request, total_resources, default_limit=DEFAULT_LIMIT
+        ):
+        """
+        Extracts the current pagination values (*limit* and *offset*) from the
+        request's query parameters.
+
+        :arg ~jsonapi.core.request.Request request:
+        :arg int total_resources:
+            The total number of resources in the collection.
+        :arg int default_limit:
+            If the request's query string does not contain a limit,
+            we will use this one as fallback value.
+        """
+        limit = request.get_query_argument("page[limit]")
+        if limit is not None and ((not limit.isdigit()) or int(limit) <= 0):
+            raise BadRequest(
+                detail="The limit must be an integer > 0.",
+                source_parameter="page[limit]"
+            )
+        if limit is None:
+            limit = default_limit
+
+        offset = request.get_query_argument("page[offset]")
+        if offset is not None and ((not offset.isdigit()) or int(offset) < 0):
+            raise BadRequest(
+                detail="The offset must be an integer >= 0.",
+                source_parameter="page[offset]"
+            )
+        if offset is None:
+            offset = 0
+
+        if offset%limit != 0:
+            LOG.warning("The offset is not dividable by the limit.")
+        return cls(uri, limit, offset, total_resources)
+
+    def json_links(self):
+        """
+        """
+        d = dict()
+        d["self"] = self.page_link({
+            "limit": self.limit,
+            "offset": self.offset
+        })
+        d["first"] = self.page_link({
+            "limit": self.limit,
+            "offset": 0
+        })
+        d["last"] = self.page_link({
+            "limit": self.limit,
+            "offset": int((self.total_resources - 1)/self.limit)*self.limit
+        })
+        if self.offset > 0:
+            d["prev"] = self.page_link({
+                "limit": self.limit,
+                "offset": max(self.offset - self.limit, 0)
+            })
+        if self.offset + self.limit < self.total_resources:
+            d["next"] = self.page_link({
+                "limit": self.limit,
+                "offset": self.offset + self.limit
+            })
+        return d
+
+    def json_meta(self):
+        """
+        Returns a dictionary with
+
+        *   *total-resources*
+            The total number of resources in the collection
+        *   *page-limit*
+            The number of resources on a page
+        *   *page-offset*
+            The offset of the current page
+        """
+        d = dict()
+        d["total-resources"] = self.total_resources
+        d["page-limit"] = self.limit
+        d["page-offset"] = self.offset
+        return d
+
+
+class NumberSize(BasePagination):
+    """
+    Implements a pagination based on *number* and *size* values.
+
+    .. code-block:: text
+
+        /api/Article/?sort=date_added&page[size]=5&page[number]=10
+
+    :arg str uri:
+    :arg int number:
+        The number of the current page.
+    :arg int size:
+        The number of resources on a page.
+    :arg int total_resources:
+        The total number of resources in the collection.
+    """
+
+    def __init__(self, uri, number, size, total_resources):
+        super().__init__(uri=uri)
+
+        assert number >= 0
+        assert size > 0
+        assert total_resources >= 0
+
+        self.number = number
+        self.size = size
+        self.total_resources = total_resources
+        return None
+
+    @classmethod
+    def from_request(
+        self, request, total_resources, default_size=DEFAULT_LIMIT
+        ):
+        """
+        Extracts the current pagination values (*size* and *number*) from the
+        request's query parameters.
+
+        :arg ~jsonapi.core.request.Request request:
+        :arg int total_resources:
+            The total number of resources in the collection.
+        :arg int default_size:
+            If the request's query string does not contain the page size
+            parameter, we will use this one as fallback.
+        """
+        number = request.get_query_argument("page[number]")
+        if number is not None and ((not number.isidigit()) or int(number) < 0):
+            raise BadRequest(
+                detail="The number must an integer >= 0.",
+                source_parameter="page[number]"
+            )
+        if number is None:
+            number = 0
+
+        size = request.get_query_argument("page[size]")
+        if size is not None and ((not size.isdigit()) or int(size) <= 0):
+            raise BadRequest(
+                detail="The size must be an integer > 0.",
+                source_parameter="page[size]"
+            )
+        if size is None:
+            size = default_size
+        return cls(uri, number, size, total_resources)
+
+    @property
+    def limit(self):
+        """
+        The limit, based on the page :attr:`size`.
+        """
+        return self.size
+
+    @property
+    def offset(self):
+        """
+        The offset, based on the page :attr:`size` and :attr:`number`.
+        """
+        return self.size*self.number
+
+    @property
+    def last_page(self):
+        """
+        The number of the last page.
+        """
+        return int((self.total_resources - 1)/self.size)
+
+    def json_links(self):
+        """
+        """
+        d = dict()
+        d["self"] = self.page_link({
+            "number": self.number,
+            "size": self.size
+        })
+        d["first"] = self.page_link({
+            "number": 0,
+            "size": self.size
+        })
+        d["last"] = self.page_link({
+            "number": self.last_page,
+            "size": self.size
+        })
+        if self.number > 0:
+            d["prev"] = self.page_link({
+                "number": self.number - 1,
+                "size": self.size
+            })
+        if self.number < self.last_page:
+            d["next"] = self.page_link({
+                "number": self.number + 1,
+                "size": self.size
+            })
+        return d
+
+    def json_meta(self):
+        """
+        Returns a dictionary with
+
+        *   *total-resources*
+            The total number of resources in the collection
+        *   *total-pages*
+            The total number of pages
+        *   *page-number*
+            The number of the current page
+        *   *page-size*
+            The (maximum) number of resources on a page
+        """
+        d = dict()
+        d["total-resources"] = self.total_resources
+        d["total-pages"] = self.last_page
+        d["page-number"] = self.number
+        d["page-size"] = self.size
+        return d
+
+
+class Cursor(BasePagination):
+    """
+    Implements a (generic) approach for a cursor based pagination.
+
+    .. code-block:: text
+
+        /api/Article/?sort=date_added&page[limit]=5&page[cursor]=19395939020
+
+    :arg str uri:
+    :arg int limit:
+        The number of resources on a page.
+    :arg cursor:
+        The cursor to the current page.
+    """
+
+    #: The cursor to the first page
+    FIRST = Symbol("jsonapi:first")
+
+    #: The cursor to the last page
+    LAST = Symbol("jsonapi:last")
+
+    def __init__(self, uri, limit, cursor):
+        super().__init__(uri=uri)
+
+        assert limit > 0
+        self.limit = limit
+        self.cursor = cursor
+        return None
+
+    @classmethod
+    def from_request(cls, request, default_limit=DEFAULT_LIMIT, cursor_re=None):
+        """
+        Extracts the current pagination values (*limit* and *cursor*) from the
+        request's query parameters.
+
+        :arg ~jsonapi.core.request.Request request:
+        :arg int default_limit:
+             If the request’s query string does not contain a limit,
+             we will use this one as fallback value.
+        :arg str cursor_re:
+            The cursor in the query string must match this regular expression.
+            If it doesn't, an exception is raised.
+        """
+        cursor = request.get_query_argument("page[cursor]", cls.BEGIN)
+        if cursor is not None and cursor_re \
+            and (not re.fullmatch(cursor_re, cursor)):
+            raise BadRequest(
+                detail="The cursor is invalid.",
+                source_parameter="page[cursor]"
+            )
+
+        limit = request.get_query_argument("page[limit]")
+        if limit is not None and ((not limit.isdigit()) or int(limit) <= 0):
+            raise BadRequest(
+                detail="The limit must be an integer > 0.",
+                source_parameter="page[limit]"
+            )
+        if limit is None:
+            limit = default_limit
+        return cls(uri, limit, cursor)
+
+    def json_links(self, prev_cursor=None, next_cursor=None):
+        """
+        :arg str prev_cursor:
+            The cursor to the previous page.
+        :arg str next_cursor:
+            The cursor to the next page.
+        """
+        d = dict()
+        d["self"] = self.page_link({
+            "cursor": str(self.cursor),
+            "limit": self.limit
+        })
+        d["first"] = self.page_link({
+            "cursor": str(self.FIRST),
+            "limit": self.limit
+        })
+        d["last"] = self.page_link({
+            "cursor": str(self.LAST),
+            "limit": self.limit
+        })
+        if next_cursor is not None:
+            d["next"] = self.page_link({
+                "cursor": str(next_cursor),
+                "limit": self.limit
+            })
+        if prev_cursor is not None:
+            d["prev"] = self.page_link({
+                "cursor": str(prev_cursor),
+                "limit": self.limit
+            })
+        return d
+
+    def json_meta(self):
+        """
+        Returns a dictionary with
+
+        *   *page-limit*
+            The number of resources per page
+        """
+        d = dict()
+        d["page-limit"] = self.limit
         return d
