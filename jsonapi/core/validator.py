@@ -545,6 +545,8 @@ class Validator(object):
     def __init__(self):
         """
         """
+        self.strict = True
+
         # validator methods
         self.__attributes = dict()
         self.__relationships = dict()
@@ -733,15 +735,19 @@ class Validator(object):
                 source_pointer=source_pointer
             )
 
-        # Validate all relationships.
+        # Make sure, all required relationships are present.
         for name, validator in self.__relationships.items():
             if validator.required and not name in d:
                 raise InvalidDocument(
                     detail="The '{}' relationship is missing.".format(name),
                     source_pointer=source_pointer
                 )
-            if name in d:
-                validator.validate(self, d[name], source_pointer + name + "/")
+
+        # Make sure, all relationship objects are valid.
+        for key, value in d.items():
+            self.assert_relationship_object(
+                key, value, source_pointer + key + "/"
+            )
         return None
 
     def assert_relationship_object(self, relname, d, source_pointer="/"):
@@ -761,6 +767,8 @@ class Validator(object):
                 detail="The relationship '{}' does not exist.".format(relname),
                 source_pointer=source_pointer
             )
+        elif validator is None:
+            validation.assert_relationship_object(d, source_pointer)
         elif validator is not None:
             validator.validate(self, d, source_pointer)
         return None
