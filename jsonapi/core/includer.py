@@ -42,7 +42,6 @@ Here is a short example:
 .. code-block:: python3
 
     class ArticleIncluder(Includer):
-        resource_class = Article
 
         @ToOneRelationship(remote_types=["User"])
         def author(self, article, request):
@@ -173,9 +172,6 @@ class Includer(object):
     :arg ~jsonapi.core.api.API api:
         The API, that owns this includer.
     """
-
-    #: The resource class (model), which is associated by this includer.
-    resource_class = None
 
     def __init__(self, api=None):
         """
