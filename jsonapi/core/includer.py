@@ -48,7 +48,7 @@ Here is a short example:
         def author(self, article, request):
             return article.author
 
-        @ToManyRelationship(remote_types=["Cómment"])
+        @ToManyRelationship(remote_types=["Comment"])
         def comments(self, article, request):
             return article.comments
 
