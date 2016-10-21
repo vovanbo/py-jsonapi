@@ -90,16 +90,12 @@ class API(object):
         self.settings = settings or dict()
         assert isinstance(self.settings, dict)
 
-        # typename -> type
-        self._types = dict()
+        # typename to encoder, includer, ... and vice versa
+        self._encoder = dict()
+        self._resource_class_to_encoder = dict()
 
-        # resource class -> type
-        self._resource_class_to_type = dict()
-
-        # Typename to handler
-        #
-        # TODO: Make the routing more efficient by using the url structure.
-        self._routes = list()
+        self._includer = dict()
+        self._resource_class_to_includer = dict()
 
         #: The global jsonapi object, which is added to each response.
         #:
@@ -112,6 +108,7 @@ class API(object):
         self.jsonapi_object["meta"] = dict()
         self.jsonapi_object["meta"]["py-jsonapi-version"] = version.version
         return None
+
 
     @property
     def debug(self):
@@ -128,6 +125,7 @@ class API(object):
     def debug(self, debug):
         self.debug = bool(debug)
         return None
+
 
     def dump_json(self, obj):
         """
@@ -155,25 +153,47 @@ class API(object):
         default = bson.json_util.object_hook if bson else None
         return json.loads(obj, object_hook=default)
 
-    def get_type(self, o, default=ARG_DEFAULT):
+
+    def get_encoder(self, o, default=ARG_DEFAULT):
         """
-        Returns the :class:`~jsonapi.core.schema.type.Type` associated with *o*.
+        Returns the :class:`~jsonapi.core.encoder.Encoder` associated with *o*.
         *o* must be either a typename, a resource class or resource object.
 
         :arg o:
             A typename, resource object or a resource class
         :arg default:
-            A fallback value, if the *Type* for *o* can not be determined.
+            Returned if no encoder for *o* is found.
         :raises KeyError:
-            If the typename is not associated with a *Type* and no default
-            argument is given.
-        :rtype: jsonapi.core.schema.type.Type
+            If no encoder for *o* is found and no *default* value is given.
+        :rtype: jsonapi.core.encoder.Encoder:
         """
-        type_ = self._types.get(o)\
-            or self._resource_class_to_type.get(o)\
-            or self._resource_class_to_type.get(type(o))
-        if type_ is not None:
-            return type_
+        encoder = self._encoder.get(o)\
+            or self._resource_class_to_encoder.get(o)\
+            or self._resource_class_to_encoder.get(type(o))
+        if encoder is not None:
+            return encoder
+        if default is not ARG_DEFAULT:
+            return default
+        raise KeyError()
+
+    def get_includer(self, o, default=ARG_DEFAULT):
+        """
+        Returns the :class:`~jsonapi.core.includer.Includer` associated with *o*.
+        *o* must be either a typename, a resource class or resource object.
+
+        :arg o:
+            A typename, resource object or a resource class
+        :arg default:
+            Returned if no includer for *o* is found.
+        :raises KeyError:
+            If no includer for *o* is found and no *default* value is given.
+        :rtype: jsonapi.core.includer.Includer:
+        """
+        includer = self._includer.get(o)\
+            or self._resource_class_to_includer.get(o)\
+            or self._resource_class_to_includer.get(type(o))
+        if includer is not None:
+            return includer
         if default is not ARG_DEFAULT:
             return default
         raise KeyError()
@@ -183,75 +203,29 @@ class API(object):
         :rtype: list
         :returns: A list with all typenames known to the API.
         """
-        return list(self._types.keys())
+        return list(self._encoder.keys())
 
-    def has_type(self, typename):
+    def add_type(self, encoder, includer=None):
         """
-        :arg str typename:
-        :rtype: bool
-        :returns:
-            True, if the API has a type with the name *typename* and False
-            otherwise.
+        Adds an encoder to the API. This method will call
+        :meth:`~jsonapi.core.encoder.Encoder.init_api` to bind the encoder to
+        the API.
+
+        :arg ~jsonapi.core.encoder.Encoder encoder:
+        :arg ~jsonapi.core.includer.Includer includer:
         """
-        return typename in self._types
+        resource_class = encoder.resource_class
+        typename = encoder.typename
 
-    def add_type(self, type, **kargs):
-        """
-        Adds the *type* to the API. This method will call
-        :meth:`~jsonapi.core.schema.type.Type.init_api` to bind the *type*
-        to the API.
+        # Add the encoder to the API.
+        self._encoder[typename] = encoder
+        if resource_class is not None:
+            self._resource_class_to_encoder[resource_class] = encoder
 
-        :type type: ~jsonapi.core.schema.type.Type
-        :arg type: A *Type* instance
-        """
-        # Our default request handler.
-        kargs.setdefault("CollectionHandler", handler.CollectionHandler)
-        kargs.setdefault("ResourceHandler", handler.ResourceHandler)
-        kargs.setdefault("ToOneRelationshipHandler", handler.ToOneRelationshipHandler)
-        kargs.setdefault("ToManyRelationshipHandler", handler.ToManyRelationshipHandler)
-        kargs.setdefault("ToOneRelatedHandler", handler.ToOneRelatedHandler)
-        kargs.setdefault("ToManyRelatedHandler", handler.ToManyRelatedHandler)
-
-        assert type.typename not in self._types
-
-        uri = self.uri + "/" + type.typename
-        type.init_api(self, uri)
-        self._types[type.typename] = type
-        self._resource_class_to_type[type.resource_class] = type
-
-        # Add the routes
-        # collection endpoint
-        collection_re = re.compile(uri + "/?")
-        collection_handler = kargs["CollectionHandler"](self, type)
-        self._routes.append((collection_re, collection_handler))
-
-        # resource endpoint
-        resource_re = re.compile(uri + "/(?P<id>[A-z0-9]+)/?")
-        resource_handler = kargs["ResourceHandler"](self, type)
-        self._routes.append((resource_re, resource_handler))
-
-        for relname, rel in type.relationships.items():
-            # relationship endpoint
-            if rel.to_one:
-                relationship_handler = kargs["ToOneRelationshipHandler"](self, type, relname)
-            else:
-                relationship_handler = kargs["ToManyRelationshipHandler"](self, type, relname)
-            relationship_re = re.compile(uri + "/(?P<id>[A-z0-9]+)/relationships/" + relname + "/?")
-            self._routes.append((relationship_re, relationship_handler))
-
-            # related endpoint
-            if rel.to_one:
-                related_handler = kargs["ToOneRelatedHandler"](self, type, relname)
-            else:
-                related_handler = kargs["ToManyRelatedHandler"](self, type, relname)
-            related_re = re.compile(uri + "/(?P<id>[A-z0-9]+)/" + relname + "/?")
-            self._routes.append((related_re, related_handler))
-        return None
-
-    def get_includer(self, o):
-        return None
-
-    def get_encoder(self, o):
+        # Add the includer to the API.
+        if includer is not None:
+            self._includer[typename] = includer
+            self._resource_class_to_includer[resource_class] = includer
         return None
 
     # Utilities
@@ -284,8 +258,8 @@ class API(object):
             return {"type": obj["type"], "id": obj["id"]}
         # obj is a resource
         else:
-            type_ = self.get_type(obj)
-            return {"typename": type_.typename, "id": type_.id.get(obj)}
+            encoder = self.get_encoder(obj)
+            return {"typename": encoder.typename, "id": encoder.id(obj)}
 
     def ensure_identifier(self, obj):
         """
@@ -308,8 +282,8 @@ class API(object):
         elif isinstance(obj, dict):
             return (obj["type"], obj["id"])
         else:
-            type_ = self.get_type(obj)
-            return (type_.typename, type_.id.get(obj))
+            encoder = self.get_encoder(obj)
+            return (encoder.typename, encoder.id(obj))
 
     # Handler
 
@@ -373,27 +347,30 @@ class API(object):
         :rtype: str
         :returns: The uri for the resource's collection
         """
-        type_ = self.get_type(resource)
-        return type_.uri
+        encoder = self.get_encoder(resource)
+        return self._uri + "/" + encoder.typename
 
     def resource_uri(self, resource):
         """
         :rtype: str
         :returns: The uri for the resource
         """
-        type_ = self.get_type(resource)
-        resource_id = type_.id.get(resource)
-        return type_.uri + "/" + resource_id
+        encoder = self.get_encoder(resource)
+        return self._uri + "/" + encoder.typename + "/" + encoder.id(resource)
 
     def relationship_uri(self, resource, relname):
         """
         :rtype: str
         :returns: The uri for the relationship *relname* of the resource
         """
-        type_ = self.get_type(resource)
-        assert relname in type_.relationships
-        resource_id = type_.id.get(resource)
-        return type_.uri + "/" + resource_id + "/relationships/" + relname
+        encoder = self.get_encoder(resource)
+
+        uri = "{base_uri}/{typename}/{resource_id}/relationships/{relname}"
+        uri = uri.format(
+            base_uri=self._uri, typename=encoder.typename,
+            resource_id=encoder.id(resource), relname=relname
+        )
+        return uri
 
     def related_uri(self, resource, relname):
         """
@@ -402,10 +379,14 @@ class API(object):
             The uri for fetching all related resources in the relationship
             *relname* with the resource.
         """
-        type_ = self.get_type(resource)
-        assert relname in type_.relationships
-        resource_id = type_.id.get(resource)
-        return type_.uri + "/" + resource_id + "/" + relname
+        encoder = self.get_encoder(resource)
+
+        uri = "{base_uri}/{typename}/{resource_id}/{relname}"
+        uri = uri.format(
+            base_uri=self._uri, typename=encoder.typename,
+            resource_id=encoder.id(resource), relname=relname
+        )
+        return uri
 
     # Resource serializer
 
@@ -423,8 +404,8 @@ class API(object):
         :returns:
             The serialized version of the *resource*.
         """
-        type_ = self.get_type(resource)
-        return type_.serialize_resource(resource, request)
+        encoder = self.get_encoder(resource)
+        return encoder.serialize_resource(resource, request)
 
     def serialize_many(self, resources, request):
         """
@@ -435,34 +416,3 @@ class API(object):
             A list with the serialized versions of all *resources*.
         """
         return [self.serialize(resource, request) for resource in resources]
-
-    # Fetching resources
-
-    def get_resources(self, ids, request):
-        """
-        Fetches the resources with the given ids from the database and returns
-        a dictionary, which maps the ids to the actual resource.
-
-        You *can* override this method.
-
-        :arg list ids:
-            A list of identifier tuples
-        :arg ~jsonapi.core.request.Request:
-            The request context
-
-        :rtype: dict
-        :returns:
-            A dictionary, which maps the ids to the resource object.
-        """
-        # Group the ids by their typename.
-        ids_by_typename = defaultdict(set)
-        for typename, id_ in ids:
-            ids_by_typename[typename].add(id_)
-
-        # Load the ids.
-        all_resources = dict()
-        for (typename, ids) in ids_by_typename.items():
-            type_ = self._types[typename]
-            resources = type_.get_resources(ids, include=None, request=request)
-            all_resources.update(resources)
-        return all_resources
