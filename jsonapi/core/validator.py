@@ -64,6 +64,15 @@ A simple validator for an article could look like this:
         "title": 10
     })
 
+
+.. _validator_function:
+
+validator function
+------------------
+
+A validator function takes a data parameter *d* and a *source_pointer* as
+arguments and raises an exception, if the data is invalid.
+
 .. seealso::
 
     *   http://jsonapi.org/format/#document-structure
