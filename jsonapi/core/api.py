@@ -248,6 +248,12 @@ class API(object):
             self._routes.append((related_re, related_handler))
         return None
 
+    def get_includer(self, o):
+        return None
+
+    def get_encoder(self, o):
+        return None
+
     # Utilities
 
     def ensure_identifier_object(self, obj):
@@ -460,98 +466,3 @@ class API(object):
             resources = type_.get_resources(ids, include=None, request=request)
             all_resources.update(resources)
         return all_resources
-
-    # The include algorithms
-
-    def get_included(self, resources, include, request):
-        """
-        Loads all related resources, which are in the include paths *include*.
-        All of the resources must be of the same type.
-
-        .. code-block:: python3
-
-            # Load all comments, commented articles (comments.article)
-            # and the written articles of *homer* and *lisa*.
-            api.get_included(
-                [homer, lisa],
-                [["comments", "article"], ["articles"]],
-                request
-            )
-
-        You *can* override this method.
-
-        :arg list resources:
-            A list of resources of the **same type**
-        :arg list include:
-            A list of include paths, as given by
-            :attr:`~jsonapi.core.request.Request.japi_include`.
-
-        :rtype: list
-        :returns:
-            A list with all resources in *include*.
-
-        :seealso: http://jsonapi.org/format/#fetching-includes
-        """
-        if not resources:
-            return []
-
-        root_resources = resources
-        root_type = self.get_type(resources[0])
-
-        # Check if all include paths exist.
-        for path in include:
-            type_ = root_type
-
-            if type_ is None:
-                LOG.warning("Can not validate include path: '%s'", path)
-                break
-
-            for name in path:
-                rel = type_.relationships.get(name)
-                if rel is None:
-                    raise UnresolvableIncludePath(path)
-                type_ = rel.remote_type
-
-        # Fetch all related resources, one path after another.
-        included_resources = dict()
-        for path in include:
-            resources = root_resources
-            type_ = root_type
-            for name in path:
-                # Get all related resources
-                rel = type_.relationships[name]
-                related_resources = self._include_helper_related(
-                    rel, resources, request
-                )
-
-                # Add the related resources, for which the resource instance
-                # has already been loaded.
-                included_resources.update(related_resources)
-
-                # Prepare the next iteration (the next relationship)
-                resources = related_resources
-                type_ = rel.remote_type
-        return list(included_resources.values())
-
-    def _include_helper_related(self, rel, resources, request):
-        """
-        Returns a tuple ``(ids, resources)``, where *ids* is a set of
-        identifier tuples and *resources* is a *dict()* of related resources.
-
-        *ids* and *resources* combined represent all resources, which are in the
-        relationship *rel* of all *resources*.
-        """
-        if rel.to_one:
-            objects = dict()
-            for resource in resources:
-                related = rel.related(resource, None, request)
-                if related is not None:
-                    objects[self.ensure_identifier(related)] = related
-        else:
-            objects = dict()
-            for resource in resources:
-                related, total_number = rel.related(resource, dict(), request)
-                objects.update({
-                    self.ensure_identifier(item): item for item in related
-                })
-        return objects
