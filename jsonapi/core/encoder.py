@@ -132,9 +132,6 @@ class EncoderMethod(object):
         self.key = None
         return None
 
-    def bind(self, encoder):
-        raise NotImplementedError()
-
     def __call__(self, fencode):
         return self.encoder(fencode)
 
@@ -296,7 +293,6 @@ class Encoder(object):
         cls = type(self)
         for key in dir(cls):
             prop = getattr(cls, key)
-
             if not isinstance(prop, EncoderMethod):
                 continue
 
