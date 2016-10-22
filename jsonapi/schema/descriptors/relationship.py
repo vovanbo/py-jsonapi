@@ -23,28 +23,48 @@
 # SOFTWARE.
 
 """
-jsonapi.schema
-==============
-
-This module contains a *schema*, which simplifies the implementation of
-your API and makes it almost trivial. However, it comes at the cost of
-beeing not as flexible as the core.
-
-.. toctree::
-    :maxdepth: 2
-
-    descriptors/index
-    schema
-    handler
+jsonapi.schema.descriptors.relationship
+=======================================
 """
 
 # local
-from .descriptors.attribute import Attribute
-from .descriptors.id import ID
-from .descriptors.link import Link
-from .descriptors.meta import Meta
-from .descriptors.to_one_relationship import ToOneRelationship
-from .descriptors.to_many_relationship import ToManyRelationship
+from .base_property import WriteableProperty
+from jsonapi.core.errors import ReadOnlyField
 
-from . import handler
-from .schema import Schema
+
+__all__ = [
+    "Relationship"
+]
+
+
+class Relationship(WriteableProperty):
+    """
+    :seealso: http://jsonapi.org/format/#document-resource-object-linkage
+
+    This is the base for the
+    :class:`~jsonapi.schema.descriptors.to_one_relationship.ToOneRelationship`
+    and
+    :class:`~jsonapi.schema.descriptors.to_many_relationship.ToManyRelationship`
+    descriptors.
+
+    :arg list remote_types:
+        A list of JSON API typenames of the related resources.
+    """
+
+    #: True, if this is a :class:`ToOneRelationship`
+    to_one = None
+
+    #: True, if this a :class:`ToManyRelationship`
+    to_many = None
+
+    def __init__(
+        self, remote_types=None, *, fget=None, fset=None, name="", doc="",
+        writable=False
+        ):
+        super().__init__(
+            fget=fget, fset=fset, name=name, doc=doc, writable=writable
+        )
+
+        #: A list with the names of all remote types.
+        self.remote_types = remote_types
+        return None

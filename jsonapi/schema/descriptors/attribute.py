@@ -23,19 +23,27 @@
 # SOFTWARE.
 
 """
-jsonapi.schema.attribute
-=============================
+jsonapi.schema.descriptors.attribute
+====================================
+
+The :class:`Attribute` descriptor allows you to declare a JSON API attribute
+on a :class:`~jsonapi.schema.schema.Schema`.
 """
 
+# std
+import logging
+
 # local
-from .base_property import WriteableProperty, BoundWriteableProperty
+from .base_property import WriteableProperty
 from jsonapi.core.errors import ReadOnlyField
 
 
 __all__ = [
-    "Attribute",
-    "BoundAttribute"
+    "Attribute"
 ]
+
+
+LOG = logging.getLogger(__file__)
 
 
 class Attribute(WriteableProperty):
@@ -45,55 +53,33 @@ class Attribute(WriteableProperty):
     This descriptor can be used to mark methods for getting and changing the
     value of an attribute.
 
-    **fget**
-
-    The *fget* method receives a *resource* object and the current
-    *request context* as arguments::
-
-        class Article(Type):
-
-            title = Attribute()
-
-            @title.getter
-            def title(self, article, request):
-                return article.get_title()
-
-    You **must** implement a getter.
-
-    **fset**
-
-    The *fset* method receives a *resource* object, the *new value* of the
-    attribute and the current *request* context as arguments::
-
-            @title.setter
-            def title(self, article, new_title, request):
-                user = request.settings["user"]
-                if not (user.is_admin or user == article.get_author()):
-                    raise Forbidden()
-                return article.set_title(title)
-
-    If you don't implement a *setter*, the attribute is *read-only* and each
-    attempt to change its value will result in a
-    :exc:`~jsonapi.core.errors.ReadOnlyField` exception.
+    :arg callable fget:
+        ``fget(schema, resource, request)``
+    :arg callable fset:
+        ``fget(schema, resource, new_value, request)``
+    :arg str name:
+        The JSON API name of the attribute
+    :arg str doc:
+        The docstring of the property
+    :arg bool writable:
+        If true, the attribute is writable.
     """
 
     def __init__(self, *, fget=None, fset=None, name="", doc=""):
         super().__init__(fget=fget, fset=fset, name=name, doc=doc)
         return None
 
-    def bind(self, type_):
-        return BoundAttribute(self, type_)
+    def default_get(self, schema, resource, request):
+        return getattr(resource, self.key)
 
-
-class BoundAttribute(BoundWriteableProperty):
-    """
-    An Attribute bound to a specific Type instance.
-    """
-
-    def default_set(self, resource, new_value, request):
-        """
-        Called, if no *setter* has been defined.
-
-        The default implementation raises :exc:`ReadOnlyField` exception.
-        """
-        raise ReadOnlyField(self.type.typename, self.prop.name)
+    def default_set(self, schema, resource, new_value, request):
+        if not self.writable:
+            raise ReadOnlyField(schema.typename, self.name)
+        if self.fget:
+            LOG.warning(
+                "The attribute '%s.%s' has a *getter*, but no *setter*. "\
+                "You should either define a *setter* or mark it as not "\
+                "*writable*.", schema.typename, self.name
+            )
+        setattr(resource, self.key, new_value)
+        return None

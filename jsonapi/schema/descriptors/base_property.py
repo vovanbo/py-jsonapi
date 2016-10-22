@@ -23,20 +23,25 @@
 # SOFTWARE.
 
 """
-jsonapi.schema.base_property
-=================================
+jsonapi.schema.descriptors.base_property
+========================================
+
+These base property classes wrap a *getter* and a *setter* method defined on
+a :class:`~jsonapi.schema.schema.Schema`. They are used to get and change
+the value of a property, like a JSON API field, link or meta data.
 """
 
 # std
-from types import MethodType
+import logging
 
 
 __all__ = [
     "ReadableProperty",
-    "BoundReadableProperty",
-    "WriteableProperty",
-    "BoundWriteableProperty"
+    "WriteableProperty"
 ]
+
+
+LOG = logging.getLogger(__file__)
 
 
 class ReadableProperty(object):
@@ -45,13 +50,21 @@ class ReadableProperty(object):
     """
 
     def __init__(self, *, fget=None, name="", doc=""):
+        """
+        """
+        #: A method defined on a :class:`~jsonapi.schema.schema.Schema`.
         self.fget = None
+
+        #: The name of this property in a JSON API document.
+        #: If not explicitly given, we will use the name of :attr:`fget` or
+        #: the :attr:`key`.
         self.name = name
+
         self.__doc__ = doc
 
         #: The name of the class attribute, which points to the property::
         #:
-        #:    foo = ReadableProperty(fget=lambda self: None, name="bar")
+        #:    foo = ReadableProperty(name="bar")
         #:    assert foo.name == "bar"
         #:    assert foo.key == "foo"
         #:
@@ -62,26 +75,13 @@ class ReadableProperty(object):
             self.getter(fget)
         return None
 
-    def bind(self, type_):
-        """
-        Creates a version of this property, which is bound to the *Type*
-        *type_*.
-
-        **Must** be overridden in subclasses.
-
-        :arg Type type_:
-        """
-        raise NotImplementedError()
-
     def getter(self, fget):
         """
         Descriptor for the :attr:`fget` method.
         """
         self.fget = fget
-        if not self.name:
-            self.name = fget.__name__
-        if not self.__doc__:
-            self.__doc__ = fget.__doc__
+        self.name = self.name or fget.__name__
+        self.__doc__ = self.__doc__ or fget.__doc__
         return self
 
     def __call__(self, fget):
@@ -90,44 +90,38 @@ class ReadableProperty(object):
         """
         return self.getter(fget)
 
-
-class BoundReadableProperty(object):
-    """
-    A readable property, but bound to a Type.
-    """
-
-    def __init__(self, prop, type_):
-        self.prop = prop
-        self.type = type_
-
-        self.name = prop.name
-        self.key = prop.key
-
-        # Bind the getter
-        self.get = MethodType(self.prop.fget, self.type)\
-            if self.prop.fget else self.default_get
-        return None
-
-    def default_get(self, *args, **kargs):
+    def default_get(self, schema, *args, **kargs):
         """
-        Called, if no *getter* has been defined.
-
-        The default implementation raises a :exc:`NotImplementedError`.
+        Fallback for :meth:`get`, if no :attr:`fget` has been defined.
         """
         raise NotImplementedError()
+
+    def get(self, schema, *args, **kargs):
+        """
+        Calls the getter with the given arguments.
+        """
+        if self.fget:
+            return self.fget(schema, *args, **kargs)
+        else:
+            return self.default_get(schema, *args, **kargs)
 
 
 class WriteableProperty(ReadableProperty):
     """
     The same as :class:`ReadableProperty`, but allows to define a *setter*
     to change the value of the property.
-
-    :seealso: http://jsonapi.org/format/#document-resource-object-fields
     """
 
-    def __init__(self, *, fget=None, fset=None, name="", doc=""):
+    def __init__(
+        self, *, fget=None, fset=None, name="", doc="", writable=False
+        ):
         super().__init__(fget=fget, name=name, doc=doc)
 
+        #: If false, the :meth:`default_set` method should throw an exception,
+        #: if the property's value should be changed.
+        self.writable = writable
+
+        #: A method defined on a :class:`~jsonapi.schema.schema.Schema`.
         self.fset = None
         if fset:
             self.setter(fset)
@@ -140,24 +134,17 @@ class WriteableProperty(ReadableProperty):
         self.fset = fset
         return self
 
-
-class BoundWriteableProperty(BoundReadableProperty):
-    """
-    A writeable property, but bound to a specific Type instance.
-    """
-
-    def __init__(self, prop, type_):
-        super().__init__(prop=prop, type_=type_)
-
-        # Bind the setter
-        self.set = MethodType(self.prop.fset, self.type)\
-            if self.prop.fset else self.default_set
-        return None
-
-    def default_set(self, *args, **kargs):
+    def default_set(self, schema, *args, **kargs):
         """
-        Called, if no *setter* has been defined.
-
-        The default implementation raises :exc:`NotImplementedError`.
+        Fallback for :meth:`set`, if not :attr:`fset` has been defined.
         """
         raise NotImplementedError()
+
+    def set(self, schema, *args, **kargs):
+        """
+        Calls the setter with the given arguments.
+        """
+        if self.fset:
+            return self.fset(schema, *args, **kargs)
+        else:
+            return self.default_set(schema, *args, **kargs)

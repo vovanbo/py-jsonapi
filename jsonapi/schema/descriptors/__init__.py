@@ -23,28 +23,28 @@
 # SOFTWARE.
 
 """
-jsonapi.schema
-==============
+jsonapi.schema.descriptors
+==========================
 
-This module contains a *schema*, which simplifies the implementation of
-your API and makes it almost trivial. However, it comes at the cost of
-beeing not as flexible as the core.
+Some descriptors, which can be used on a :class:`~jsonapi.schema.schema.Schema`.
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
 
-    descriptors/index
-    schema
-    handler
+    base_property
+    id
+    attribute
+    relationship
+    to_one_relationship
+    to_many_relationship
+    link
+    meta
 """
 
 # local
-from .descriptors.attribute import Attribute
-from .descriptors.id import ID
-from .descriptors.link import Link
-from .descriptors.meta import Meta
-from .descriptors.to_one_relationship import ToOneRelationship
-from .descriptors.to_many_relationship import ToManyRelationship
-
-from . import handler
-from .schema import Schema
+from .attribute import Attribute
+from .id import ID
+from .link import Link
+from .meta import Meta
+from .to_one_relationship import ToOneRelationship
+from .to_many_relationship import ToManyRelationship

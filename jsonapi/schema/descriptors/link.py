@@ -23,18 +23,23 @@
 # SOFTWARE.
 
 """
-jsonapi.schema.link
-========================
+jsonapi.schema.descriptors.link
+===============================
 """
 
+# std
+import logging
+
 # local
-from .base_property import ReadableProperty, BoundReadableProperty
+from .base_property import ReadableProperty
 
 
 __all__ = [
-    "Link",
-    "BoundLink"
+    "Link"
 ]
+
+
+LOG = logging.getLogger(__file__)
 
 
 class Link(ReadableProperty):
@@ -43,49 +48,25 @@ class Link(ReadableProperty):
 
     This descriptor can be used to mark a link on a resource level.
 
-    **fget**
-
-    The *fget* method receives a *resource* object and the current
-    *request context* as arguments::
-
-        class Article(Type):
-
-            @Link()
-            def image(self, resource, request):
-                return get_static_url("Article:Image:" + resource.id)
-
     :arg str href:
         If given, this URL is returned if no *getter* is defined.
+    :arg callable fget:
+        ``fget(schema, resource, request)``
+    :arg str name:
+        The JSON API name of the link
+    :arg str doc:
+        The docstring of this property
     """
 
     def __init__(self, href="", *, fget=None, name="", doc=""):
         super().__init__(fget=fget, name=name, doc=doc)
 
-        #:
+        #: A string, which is simply return per default as the link's value.
         self.href = href
         return None
 
-    def bind(self, type_):
-        return BoundLink(self, type_)
-
-
-class BoundLink(BoundReadableProperty):
-    """
-    An Link bounded to a specific Type instance.
-    """
-
-    def __init__(self, link, type_):
-        super().__init__(link, type_)
-        self.href = link.href
-        return None
-
-    def default_get(self, resource):
-        """
-        Called, if no *getter* has been defined.
-
-        The default implementation returns :attr:`Link.href`, if it is defined
-        and raises a :exc:`NotImplementedError` exception otherwise.
-        """
+    def default_get(self, schema, resource, request):
         if self.href:
             return self.href
-        raise NotImplementedError()
+        else:
+            return getattr(resource, self.key)
