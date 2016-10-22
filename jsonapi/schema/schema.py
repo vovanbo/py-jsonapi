@@ -232,7 +232,7 @@ class Schema(object):
         raise NotImplementedError()
 
 
-    def get_related(self, relname, resource, query_params, request):
+    def get_related(self, relname, resource, *, request):
         """
         .. seealso::
 
