@@ -33,6 +33,7 @@ in other web frameworks.
 
 # std
 from collections import defaultdict
+import enum
 import json
 import logging
 import re
@@ -61,6 +62,17 @@ LOG = logging.getLogger(__file__)
 
 # We only need the id of this list.
 ARG_DEFAULT = []
+
+
+class EndpointTypes(enum.Enum):
+    """
+    The different endpoint types known to the API.
+    """
+
+    Collection = 0
+    Resource = 1
+    Relationship = 2
+    Related = 3
 
 
 class API(object):
@@ -291,11 +303,40 @@ class API(object):
         """
         Returns the handler, which is responsible for the request's endpoint.
         """
-        for uri_pattern, handler in self._routes:
-            match = uri_pattern.fullmatch(request.parsed_uri.path)
-            if match:
-                request.japi_uri_arguments.update(match.groupdict())
-                return handler
+        # The regular expressions, which will match the uri path or not.
+        escaped_uri = re.escape(self._uri)
+        collection_re = escaped_uri\
+            + "/(?P<type>.+?)/?"
+        resource_re = escaped_uri\
+            + "/(?P<type>.+?)/(?P<id>.+?)/?"
+        relationship_re = escaped_uri\
+            + "/(?P<type>.+?)/(?P<id>.+?)/relationships/<(?P<relname>.+?)/?"
+        related_re = escaped_uri\
+            + "/(?P<type>.+?)/(?P<id>.+?)/<(?P<relname>.+?)/?"
+
+        # Collection
+        match = re.fullmatch(collection_re, request.parsed_uri.path)
+        if match:
+            request.japi_uri_arguments.update(match.groupdict())
+            return EndpointTypes.Collection
+
+        # Resource
+        match = re.fullmatch(resource_re, request.parsed_uri.path)
+        if match:
+            request.japi_uri_arguments.update(match.groupdict())
+            return EndpointTypes.Resource
+
+        # Relationship
+        match = re.fullmatch(relationship_re, request.parsed_uri.path)
+        if match:
+            request.japi_uri_arguments.update(match.groupdict())
+            return EndpointTypes.Relationship
+
+        # Related
+        match = re.fullmatch(related_re, request.parsed_uri.path)
+        if match:
+            request.japi_uri_arguments.update(match.groupdict())
+            return EndpointTypes.Related
         raise errors.NotFound()
 
     def prepare_request(self, request):
