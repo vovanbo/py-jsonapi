@@ -48,7 +48,7 @@ class Response(object):
 
     def __init__(self, status=200, headers=None, body=None, file=None):
         self.status = status
-        self.headers = headers if headers is not None else dict()
+        self.headers = headers or dict()
         self.body = body
         self.file = file
         return None

@@ -256,7 +256,7 @@ class Relationship(ResponseBuilder):
         """
         super().__init__(request=request)
 
-        self.relname = relname or request.japi_uri_arguments["relationship"]
+        self.relname = relname or request.japi_uri_arguments["relname"]
         self.resource = resource
         self.pagination = pagination
         return None
