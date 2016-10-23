@@ -79,6 +79,11 @@ class ResponseBuilder(object):
 
     def fetch_include(self):
         """
+        .. hint::
+
+            This method may return a **coroutine** if the underyling
+            :class:`~jsonapi.core.includer.Includer` is asynchronous.
+
         If :attr:`data` contains resources, this method will fetch all related
         resources.
         """
@@ -209,7 +214,12 @@ class Resource(ResponseBuilder):
         """
         """
         d = super().render()
-        d["data"] = self.api.serialize(self.data, self.request)
+
+        if self.data is None:
+            d["data"] = None
+        else:
+            d["data"] = self.api.serialize(self.data, self.request)
+            
         if self.included:
             d["included"] = self.api.serialize_many(self.included, self.request)
         if self.links:

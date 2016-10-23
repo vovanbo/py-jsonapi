@@ -189,8 +189,13 @@ class LimitOffset(BasePagination):
         assert total_resources >= 0
         assert limit > 0
 
+        #: The number of resources on a page.
         self.limit = limit
+
+        #: The offset, which leads to the current page
         self.offset = offset
+
+        #: The total number of resources in the collection
         self.total_resources = total_resources
         return None
 
@@ -301,8 +306,13 @@ class NumberSize(BasePagination):
         assert size > 0
         assert total_resources >= 0
 
+        #: The current page number
         self.number = number
+
+        #: The number of resources on a page
         self.size = size
+
+        #: The total number of resources in the collection
         self.total_resources = total_resources
         return None
 
@@ -420,9 +430,13 @@ class Cursor(BasePagination):
 
     :arg str uri:
     :arg int limit:
-        The number of resources on a page.
+        The number of resources on a page
     :arg cursor:
-        The cursor to the current page.
+        The cursor to the current page
+    :arg prev_cursor:
+        The cursor to the previous page
+    :arg next_cursor:
+        The cursor to the next page
     """
 
     #: The cursor to the first page
@@ -431,12 +445,21 @@ class Cursor(BasePagination):
     #: The cursor to the last page
     LAST = Symbol("jsonapi:last")
 
-    def __init__(self, uri, limit, cursor):
+    def __init__(self, uri, limit, cursor, prev_cursor=None, next_cursor=None):
         super().__init__(uri=uri)
-
         assert limit > 0
+
+        #: The page size
         self.limit = limit
+
+        #: The cursor to the current page.
         self.cursor = cursor
+
+        #: The cursor to the previous page.
+        self.prev_cursor = prev_cursor
+
+        #: The cursor to the next page.
+        self.next_cursor = next_cursor
         return None
 
     @classmethod
@@ -478,6 +501,11 @@ class Cursor(BasePagination):
         :arg str next_cursor:
             The cursor to the next page.
         """
+        if prev_cursor is None:
+            prev_cursor = self.prev_cursor
+        if next_cursor is None:
+            next_cursor = self.next_cursor
+
         d = dict()
         d["self"] = self.page_link({
             "cursor": str(self.cursor),

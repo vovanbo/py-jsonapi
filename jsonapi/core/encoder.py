@@ -286,6 +286,30 @@ class Encoder(object):
         self.__detect_encoder_methods()
         return None
 
+    def add_encoder_method(self, key, method):
+        """
+        Adds an :class:`EncoderMethod` to the encoder.
+
+        :arg str key:
+            The name of the encoder method (encoder attribute name)
+        :arg EncoderMethod:
+            A new encoder method
+        """
+        assert isinstance(method, EncoderMethod)
+
+        method.name = method.name or key
+        method.key = key
+
+        if isinstance(method, Attribute):
+            self.__attributes[method.name] = method
+        elif isinstance(method, (ToOneRelationship, ToManyRelationship)):
+            self.__relationships[method.name] = method
+        elif isinstance(method, Meta):
+            self.__meta[method.name] = method
+        elif isinstance(method, Link):
+            self.__links[method.name] = method
+        return None
+
     def __detect_encoder_methods(self):
         """
         Detects :class:`EncoderMethod`s and binds them to this instance.
@@ -295,18 +319,7 @@ class Encoder(object):
             prop = getattr(cls, key)
             if not isinstance(prop, EncoderMethod):
                 continue
-
-            prop.name = prop.name or key
-            prop.key = key
-
-            if isinstance(prop, Attribute):
-                self.__attributes[prop.name] = prop
-            elif isinstance(prop, (ToOneRelationship, ToManyRelationship)):
-                self.__relationships[prop.name] = prop
-            elif isinstance(prop, Meta):
-                self.__meta[prop.name] = prop
-            elif isinstance(prop, Link):
-                self.__links[prop.name] = prop
+            self.add_encoder_method(key, prop)
         return None
 
     @property

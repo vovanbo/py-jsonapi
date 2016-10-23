@@ -131,14 +131,14 @@ class Relationship(object):
         else:
             return types.MethodType(self.default_get, includer)
 
-    def default_get(self, includer, resource):
+    def default_get(self, includer, resource, request):
         return getattr(resource, self.key)
 
-    def get(self, includer, resource):
+    def get(self, includer, resource, request):
         if self.fget:
-            return self.fget(includer, resource)
+            return self.fget(includer, resource, request)
         else:
-            return self.default_get(includer, resource)
+            return self.default_get(includer, resource, request)
 
 
 class ToOneRelationship(Relationship):
@@ -182,6 +182,19 @@ class Includer(object):
         self.__detect_includer_methods()
         return None
 
+    def add_includer_method(self, key, method):
+        """
+        Adds a new includer method to the includer.
+
+        :arg str key:
+        :arg ~jsonapi.core.includer.Relationship method:
+        """
+        assert isinstance(method, (ToOneRelationship, ToManyRelationship))
+        method.name = method.name or key
+        method.key = key
+        self.__relationships[method.name] = method
+        return None
+
     def __detect_includer_methods(self):
         """
         Detects the :class:`ToOneRelationship` and :class:`ToManyRelationship`
@@ -190,13 +203,10 @@ class Includer(object):
         cls = type(self)
         for key in dir(cls):
             prop = getattr(cls, key)
-            if not isinstance(prop, Relationship):
+            if not isinstance(prop, (ToOneRelationship, ToManyRelationship)):
                 continue
 
-            prop.name = prop.name or key
-            prop.key = key
-
-            self.__relationships[prop.name] = prop
+            self.add_includer_method(key, prop)
         return None
 
     @property
@@ -297,9 +307,20 @@ class Includer(object):
         related = set()
         if relationship.to_one:
             for resource in resources:
-                related.add(relationship.get(self, resource))
+                related.add(relationship.get(self, resource, request))
             related.discard(None)
         else:
             for resource in resources:
-                related.update(relationship.get(self, resource))
+                related.update(relationship.get(self, resource, request))
         return related
+
+    def fetch_resources(self, ids, request):
+        """
+        **Must be overridden,** if you want to work with the *Schema* extension.
+
+        :arg list ids:
+            A list of resource ids
+        :arg ~jsonapi.core.request.Request request:
+            The current request context.
+        """
+        raise NotImplementedError()
