@@ -109,6 +109,17 @@ class API(object):
         self._includer = dict()
         self._resource_class_to_includer = dict()
 
+        # Maps an endpoint name to the handler.
+        #
+        # ("User", "collection")
+        # ("User", "resource")
+        # ("User", "related", "posts")
+        # ("User", "relationship", "posts")
+        #
+        # TODO: Note, that the routing and request handling is still open for
+        #       discussion.
+        self._handler = dict()
+
         #: The global jsonapi object, which is added to each response.
         #:
         #: You can add meta information to the ``jsonapi_object["meta"]``
@@ -230,14 +241,49 @@ class API(object):
         typename = encoder.typename
 
         # Add the encoder to the API.
+        encoder.init_api(self)
         self._encoder[typename] = encoder
         if resource_class is not None:
             self._resource_class_to_encoder[resource_class] = encoder
 
         # Add the includer to the API.
         if includer is not None:
+            includer.init_api(self)
             self._includer[typename] = includer
             self._resource_class_to_includer[resource_class] = includer
+        return None
+
+    def add_handler(self, handler, typename, endpoint_type, relname=None):
+        """
+        .. warning::
+
+            The final routing mechanisms and URL patterns are still open for
+            discussion.
+
+        Adds a new :class:`~jsonapi.core.handler.Handler` to the API.
+
+        :arg ~jsonapi.core.handler.Handler handler:
+            A request handler
+        :arg str typename:
+        :arg ~jsonapi.core.api.EndpointTypes endpoint_type:
+        :arg str relname:
+            The name of the relationship, if the *endpoint_type* is
+            :attr:`EndpointTypes.relationship` or :attr:`EndpointTypes.Related`.
+        """
+        if endpoint_type == "collection":
+            self._handler[(typename, endpoint_type)] = handler
+            handler.init_api(self)
+        elif endpoint_type == "resource":
+            self._handler[(typename, endpoint_type)] = handler
+            handler.init_api(self)
+        elif endpoint_type == "relationship":
+            assert relname
+            self._handler[(typename, endpoint_type, relname)] = handler
+            handler.init_api(self)
+        elif endpoint_type == "related":
+            assert relname
+            self._handler[(typename, endpoint_type, relname)] = handler
+            handler.init_api(self)
         return None
 
     # Utilities
@@ -306,38 +352,42 @@ class API(object):
         # The regular expressions, which will match the uri path or not.
         escaped_uri = re.escape(self._uri)
         collection_re = escaped_uri\
-            + "/(?P<type>.+?)/?"
+            + "/(?P<type>[^\/]+?)/?$"
         resource_re = escaped_uri\
-            + "/(?P<type>.+?)/(?P<id>.+?)/?"
+            + "/(?P<type>[^\/]+?)/(?P<id>[^\/]+?)/?$"
         relationship_re = escaped_uri\
-            + "/(?P<type>.+?)/(?P<id>.+?)/relationships/<(?P<relname>.+?)/?"
+            + "/(?P<type>[^\/]+?)/(?P<id>[^\/]+?)/relationships/<(?P<relname>[^\/]+?)/?$"
         related_re = escaped_uri\
-            + "/(?P<type>.+?)/(?P<id>.+?)/<(?P<relname>.+?)/?"
+            + "/(?P<type>[^\/]+?)/(?P<id>[^\/]+?)/<(?P<relname>[^\/]+?)/?$"
 
         # Collection
         match = re.fullmatch(collection_re, request.parsed_uri.path)
         if match:
             request.japi_uri_arguments.update(match.groupdict())
-            return EndpointTypes.Collection
+            spec = (match.group("type"), "collection")
+            return self._handler.get(spec)
 
         # Resource
         match = re.fullmatch(resource_re, request.parsed_uri.path)
         if match:
             request.japi_uri_arguments.update(match.groupdict())
-            return EndpointTypes.Resource
+            spec = (match.group("type"), "resource")
+            return self._handler.get(spec)
 
         # Relationship
         match = re.fullmatch(relationship_re, request.parsed_uri.path)
         if match:
             request.japi_uri_arguments.update(match.groupdict())
-            return EndpointTypes.Relationship
+            spec = (match.group("type"), "relationship", match.group("relname"))
+            return self._handler.get(spec)
 
         # Related
         match = re.fullmatch(related_re, request.parsed_uri.path)
         if match:
             request.japi_uri_arguments.update(match.groupdict())
-            return EndpointTypes.Related
-        raise errors.NotFound()
+            spec = (match.group("type"), "related", match.group("relname"))
+            return self._handler.get(spec)
+        return None
 
     def prepare_request(self, request):
         """
@@ -367,6 +417,10 @@ class API(object):
         try:
             self.prepare_request(request)
             handler = self._get_handler(request)
+            if handler is None:
+                LOG.debug("Could not find route.")
+                raise errors.NotFound()
+
             resp = handler.handle(request)
         except errors.Error as err:
             if self.debug:

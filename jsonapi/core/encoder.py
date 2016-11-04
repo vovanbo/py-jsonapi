@@ -174,7 +174,7 @@ class Relationship(EncoderMethod):
 
     def links(self, encoder, resource):
         resource_id = encoder.id(resource)
-        base_uri = encoder.api.base_uri
+        base_uri = encoder.api.uri
 
         d = dict()
         d["self"] = "{}/{}/{}/relationships/{}".format(
@@ -336,8 +336,8 @@ class Encoder(object):
         :arg ~jsonapi.core.api.API api:
             The owning API
         """
-        assert self.api is None or self.api is api
-        self.api = api
+        assert self.__api is None or self.__api is api
+        self.__api = api
         return None
 
     def id(self, resource):
@@ -404,7 +404,7 @@ class Encoder(object):
             d["links"] = links
         return d
 
-    def serialize_id(self, resource, request):
+    def serialize_id(self, resource):
         """
         .. seealso::
 
@@ -412,8 +412,6 @@ class Encoder(object):
 
         :arg resource:
             A resource object
-        :arg ~jsonapi.core.request.Request request:
-            The request context
 
         :rtype: dict
         :returns:

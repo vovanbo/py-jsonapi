@@ -318,7 +318,7 @@ class NumberSize(BasePagination):
 
     @classmethod
     def from_request(
-        self, request, total_resources, default_size=DEFAULT_LIMIT
+        cls, request, total_resources, default_size=DEFAULT_LIMIT
         ):
         """
         Extracts the current pagination values (*size* and *number*) from the
@@ -332,13 +332,12 @@ class NumberSize(BasePagination):
             parameter, we will use this one as fallback.
         """
         number = request.get_query_argument("page[number]")
-        if number is not None and ((not number.isidigit()) or int(number) < 0):
+        if number is not None and ((not number.isdigit()) or int(number) < 0):
             raise BadRequest(
                 detail="The number must an integer >= 0.",
                 source_parameter="page[number]"
             )
-        if number is None:
-            number = 0
+        number = int(number) if number else 0
 
         size = request.get_query_argument("page[size]")
         if size is not None and ((not size.isdigit()) or int(size) <= 0):
@@ -348,7 +347,8 @@ class NumberSize(BasePagination):
             )
         if size is None:
             size = default_size
-        return cls(uri, number, size, total_resources)
+        size = int(size) if size else 0
+        return cls(request.uri, number, size, total_resources)
 
     @property
     def limit(self):
@@ -405,8 +405,8 @@ class NumberSize(BasePagination):
 
         *   *total-resources*
             The total number of resources in the collection
-        *   *total-pages*
-            The total number of pages
+        *   *last-page*
+            The index of the last page
         *   *page-number*
             The number of the current page
         *   *page-size*
@@ -414,7 +414,7 @@ class NumberSize(BasePagination):
         """
         d = dict()
         d["total-resources"] = self.total_resources
-        d["total-pages"] = self.last_page
+        d["last-page"] = self.last_page
         d["page-number"] = self.number
         d["page-size"] = self.size
         return d

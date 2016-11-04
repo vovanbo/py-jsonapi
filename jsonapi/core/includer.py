@@ -223,8 +223,8 @@ class Includer(object):
         :arg ~jsonapi.core.api.API api:
             The owning API
         """
-        assert self.api is None or self.api is api
-        self.api = api
+        assert self.__api is None or self.__api is api
+        self.__api = api
         return None
 
     def path_exists(self, path):

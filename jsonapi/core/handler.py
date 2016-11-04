@@ -59,11 +59,14 @@ class Handler(object):
 
     :arg ~jsonapi.core.api.API api:
         The API, which owns this handler.
-    :arg ~jsonapi.core.schema.Type type_:
-        The Type, which is associated with this handler.
     """
 
-    def __init__(self, api):
+    def __init__(self, api=None):
+        self.api = api
+        return None
+
+    def init_api(self, api):
+        assert self.api is None or self.api is api
         self.api = api
         return None
 

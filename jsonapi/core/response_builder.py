@@ -77,28 +77,6 @@ class ResponseBuilder(object):
         """
         return self.__request
 
-    def fetch_include(self):
-        """
-        .. hint::
-
-            This method may return a **coroutine** if the underyling
-            :class:`~jsonapi.core.includer.Includer` is asynchronous.
-
-        If :attr:`data` contains resources, this method will fetch all related
-        resources.
-        """
-        typename = self.__request.japi_uri_arguments["type"]
-        includer = self.__api.get_includer(typename)
-
-        data = getattr(self, "data", None) or list()
-        data = data if isinstance(data, list) else [self.data]
-
-        # If this is an asynchronous includer, this will return a coroutine,
-        # but that is fine.
-        return includer.fetch_include(
-            data, self.__request.japi_include, self.__request
-        )
-
     def render(self):
         """
         :rtype: dict
@@ -126,7 +104,39 @@ class ResponseBuilder(object):
         return resp
 
 
-class Collection(ResponseBuilder):
+class IncludeMixin(object):
+    """
+    Mixin for fetching all include paths specified in the requests query string.
+    """
+
+    def __init__(self, included=None):
+        self.included = included or list()
+        return None
+
+    def fetch_include(self):
+        """
+        .. hint::
+
+            This method may return a **coroutine** if the underyling
+            :class:`~jsonapi.core.includer.Includer` is asynchronous.
+
+        If :attr:`data` contains resources, this method will fetch all related
+        resources.
+        """
+        typename = self.request.japi_uri_arguments["type"]
+        includer = self.api.get_includer(typename)
+
+        data = getattr(self, "data", None) or list()
+        data = data if isinstance(data, list) else [self.data]
+
+        included = includer.fetch_paths(
+            data, self.request.japi_include, self.request
+        )
+        self.included.extend(included)
+        return None
+
+
+class Collection(ResponseBuilder, IncludeMixin):
     """
     Builds a collection response. The primary :attr:`data` contains a list
     of resources.
@@ -152,7 +162,8 @@ class Collection(ResponseBuilder):
         ):
         """
         """
-        super().__init__(request=request)
+        ResponseBuilder.__init__(self, request=request)
+        IncludeMixin.__init__(self, included=included)
 
         self.data = data or list()
         self.included = included or list()
@@ -174,13 +185,13 @@ class Collection(ResponseBuilder):
         if self.meta:
             d["meta"] = self.meta
 
-        if pagination is not None:
-            d.setdefault("links", dict()).update(pagination.json_links())
-            d.setdefault("meta", dict()).update(pagination.json_meta())
+        if self.pagination is not None:
+            d.setdefault("links", dict()).update(self.pagination.json_links())
+            d.setdefault("meta", dict()).update(self.pagination.json_meta())
         return d
 
 
-class Resource(ResponseBuilder):
+class Resource(ResponseBuilder, IncludeMixin):
     """
     Contains a resource or ``None`` as primary :attr:`data`.
 
@@ -202,7 +213,8 @@ class Resource(ResponseBuilder):
         ):
         """
         """
-        super().__init__(request=request)
+        ResponseBuilder.__init__(self, request=request)
+        IncludeMixin.__init__(self, included=included)
 
         self.data = data
         self.included = included or list()
@@ -219,14 +231,14 @@ class Resource(ResponseBuilder):
             d["data"] = None
         else:
             d["data"] = self.api.serialize(self.data, self.request)
-            
+
         if self.included:
             d["included"] = self.api.serialize_many(self.included, self.request)
         if self.links:
             d["links"] = self.links
         if self.meta:
             d["meta"] = self.meta
-        return
+        return d
 
 
 class NewResource(Resource):
@@ -311,4 +323,4 @@ class MetaOnly(ResponseBuilder):
         """
         d = super().render()
         d["meta"] = self.meta
-        return None
+        return d
