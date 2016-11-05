@@ -124,7 +124,9 @@ class IncludeMixin(object):
         resources.
         """
         typename = self.request.japi_uri_arguments["type"]
-        includer = self.api.get_includer(typename)
+        includer = self.api.get_includer(typename, None)
+        if includer is None:
+            return None
 
         data = getattr(self, "data", None) or list()
         data = data if isinstance(data, list) else [self.data]
