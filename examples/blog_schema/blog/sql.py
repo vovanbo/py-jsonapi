@@ -5,7 +5,9 @@ import sqlalchemy.orm
 import sqlalchemy.ext.declarative
 
 
-__all__ = ["Base", "engine", "Session"]
+__all__ = [
+    "Base", "engine", "Session"
+]
 
 
 # Create the sqlalchemy base, engine and the sessionmaker.
