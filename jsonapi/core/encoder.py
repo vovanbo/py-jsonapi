@@ -211,7 +211,7 @@ class ToManyRelationship(Relationship):
         self, encoder, resource, request, *, require_data=False, pagination=None
         ):
         fencode = self.fencode or self.default_encode
-        d = self.fencode(
+        d = fencode(
             encoder, resource, request, require_data=require_data,
             pagination=pagination
         )

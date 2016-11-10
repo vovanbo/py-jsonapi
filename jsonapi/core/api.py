@@ -50,6 +50,7 @@ except ImportError:
 from .. import version
 from . import errors
 from . import handler
+from . import response_builder
 
 
 __all__ = [
@@ -419,12 +420,22 @@ class API(object):
 
         try:
             self.prepare_request(request)
+
+            # Find a handler (routing).
             handler = self._get_handler(request)
             if handler is None:
                 LOG.debug("Could not find route.")
                 raise errors.NotFound()
 
+            # Handle the request.
             resp = handler.handle(request)
+
+            # If the handler only returned a response builder, we need to
+            # convert it to a propert response.
+            if isinstance(resp, response_builder.ResponseBuilder):
+                if isinstance(resp, response_builder.IncludeMixin):
+                    resp.fetch_include()
+                resp = resp.to_response()
         except errors.Error as err:
             if self.debug:
                 raise
