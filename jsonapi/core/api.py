@@ -321,7 +321,7 @@ class API(object):
         # obj is a resource
         else:
             encoder = self.get_encoder(obj)
-            return {"typename": encoder.typename, "id": encoder.id(obj)}
+            return {"type": encoder.typename, "id": encoder.id(obj)}
 
     def ensure_identifier(self, obj):
         """

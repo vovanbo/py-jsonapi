@@ -204,8 +204,8 @@ class ID(ValidatorMethod):
         If given, the id must match this regular expression.
     """
 
-    def __init__(self, *, fvalidate=None, regex=None):
-        super().__init__(name="id", required=True, fvalidate=fvalidate)
+    def __init__(self, *, fvalidate=None, regex=None, required=False):
+        super().__init__(name="id", required=required, fvalidate=fvalidate)
         self.regex = re.compile(regex) if regex is not None else None
         return None
 
@@ -548,7 +548,7 @@ class Validator(object):
     the type of attributes and makes sure all required fields are present.
     """
 
-    id = ID()
+    id = ID(required=False)
     type = Type()
 
     def __init__(self):
@@ -557,6 +557,7 @@ class Validator(object):
         self.strict = True
 
         # validator methods
+        self.__id = None
         self.__attributes = dict()
         self.__relationships = dict()
         self.__links = dict()
@@ -585,6 +586,8 @@ class Validator(object):
             self.__links[method.name] = method
         elif isinstance(method, Meta):
             self.__meta[method.name] = method
+        elif isinstance(method, ID) and key == "id":
+            self.__id = method
         return None
 
     def __detect_validator_methods(self):
@@ -596,6 +599,29 @@ class Validator(object):
             if not isinstance(prop, ValidatorMethod):
                 continue
             self.add_validator_method(key, prop)
+        return None
+
+    def assert_one_resource_object(self, d, source_pointer="/"):
+        """
+        Asserts, that *d* is a top-level JSON API document, which has a
+        *data* member pointing to a resource document.
+
+        :arg d:
+        :arg str source_pointer:
+
+        :raises InvalidDocument:
+        """
+        if not isinstance(d, dict):
+            raise InvalidDocument(
+                detail="A JSON API top-level document must be an object.",
+                source_pointer=source_pointer
+            )
+        if not "data" in d:
+            raise InvalidDocument(
+                detail="The *data* member is required.",
+                source_pointer=source_pointer
+            )
+        self.assert_resource_object(d["data"], source_pointer="/")
         return None
 
     def assert_resource_object(self, d, source_pointer="/"):
@@ -633,7 +659,7 @@ class Validator(object):
             self.assert_type(d["type"], source_pointer + "type/")
 
         # id
-        if not "id" in d:
+        if self.__id.required and not "id" in d:
             raise InvalidDocument(
                 detail="The 'id' member is required.",
                 source_pointer=source_pointer

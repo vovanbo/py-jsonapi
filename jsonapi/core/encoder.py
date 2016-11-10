@@ -545,6 +545,7 @@ class Encoder(object):
             The JSON API links object of the *resource*
         """
         d = dict()
+        d["self"] = self.api.resource_uri(resource)
         for name, link in self.__links.items():
             d[name] = link.encode(self, resource, request)
         return d
