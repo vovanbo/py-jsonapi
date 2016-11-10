@@ -288,18 +288,18 @@ class Relationship(ResponseBuilder):
     def render(self):
         """
         """
-        encoder = self.api.get_encoder(resource)
+        encoder = self.api.get_encoder(self.resource)
         relationship_object = encoder.serialize_relationship(
-            relname=self.relname, resource=resource, request=request,
-            require_data=True, pagination=pagination
+            relname=self.relname, resource=self.resource, request=self.request,
+            require_data=True, pagination=self.pagination
         )
 
         d = super().render()
         d.update(relationship_object)
 
-        if pagination is not None:
-            d.setdefault("links", dict()).update(pagination.json_links())
-            d.setdefault("meta", dict()).update(pagination.json_meta())
+        if self.pagination is not None:
+            d.setdefault("links", dict()).update(self.pagination.json_links())
+            d.setdefault("meta", dict()).update(self.pagination.json_meta())
         return d
 
 

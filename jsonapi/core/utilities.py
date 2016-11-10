@@ -39,6 +39,9 @@ __all__ = [
     "collect_identifiers",
     "rebase_include",
     "load_relationships_object",
+    "load_relationship_object",
+    "fetch_resources",
+    "fetch_resources",
     "register_auto_type",
     "auto_type"
 ]
@@ -157,15 +160,69 @@ def rebase_include(new_root, include):
     return rebased
 
 
-def load_relationships_object(d, api, request):
+def fetch_resources(ids, request):
+    """
+    Loads many resources.
+
+    :arg list ids:
+        A list of identifiers tuples.
+    :arg ~jsonapi.core.request.Request request:
+        The current request context
+
+    :rtype: dict
+    :returns:
+        A dictionary, which maps the identifier tuples to the resource.
+    """
+    api = request.api
+
+    # Group the ids by the typename.
+    ids_by_typename = dict()
+    for (typename, id_) in ids:
+        ids_by_typename.setdefault(typename, set()).add(id_)
+
+    # Load all resources.
+    all_resources = dict()
+    for typename, ids in ids_by_typename.items():
+        includer = api.get_includer(typename)
+        resources = includer.fetch_resources(ids, request=request)
+        all_resources.update(resources)
+    return all_resources
+
+
+def fetch_resource(id_, request):
+    """
+    Loads many resources.
+
+    :arg list id_:
+        An identifier (object or tuple).
+    :arg ~jsonapi.core.request.Request request:
+        The current request context
+
+    :rtype: dict
+    :returns:
+        The resource with the id *id_*.
+    """
+    if id_ is None:
+        return None
+
+    api = request.api
+    typename, id_ = api.ensure_identifier(id_)
+    includer = api.get_includer(typename)
+
+    resources = includer.fetch_resources([id_], request=request)
+    resource = next(iter(resources.values()))
+    return resource
+
+
+def load_relationships_object(d, request):
     """
     Loads the relatives in a relationships object and returns a dictionary,
     which maps the relationship names to the related resources.
 
     :arg dict d:
         A JSON API relationships object
-    :arg ~jsonapi.core.api.API api:
-        An API, which knows all types mentioned in *d*.
+    :arg ~jsonapi.core.request.Request request:
+        The current request context
 
     :rtype: dict
     :returns:
@@ -174,8 +231,10 @@ def load_relationships_object(d, api, request):
 
     :seealso: http://jsonapi.org/format/#document-resource-object-relationships
     """
+    api = request.api
+
     ids = collect_identifiers(d, with_data=True, with_meta=False)
-    resources = api.get_resources(ids, request)
+    resources = fetch_resources(ids, request)
 
     # Map the relationship names to the resources.
     relationships = dict()
@@ -198,6 +257,30 @@ def load_relationships_object(d, api, request):
                 for item in value["data"]
             ]
     return relationships
+
+
+def load_relationship_object(d, request):
+    """
+    Loads the relatives in the relationship object *d*. And returns it.
+    In case of a *to-one* relationship, *None* or the resource object is
+    returned. In case of a *to-many* relationship, a list with all resoruces
+    is returned.
+
+    :arg dict d:
+        A JSON API relationship object
+    :arg ~jsonapi.core.request.Request request:
+        The current request context
+    """
+    api = request.api
+
+    data = d["data"]
+    if data is None:
+        return None
+    if isinstance(data, dict):
+        return fetch_resource(data, request)
+    if isinstance(data, list):
+        return fetch_resources(data, request)
+    raise TypeError("*d* is not a valid relationship object.")
 
 
 # The type factory

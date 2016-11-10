@@ -306,8 +306,11 @@ class API(object):
 
         :seealso: http://jsonapi.org/format/#document-resource-identifier-objects
         """
+        # None
+        if obj is None:
+            return None
         # Identifier tuple
-        if isinstance(obj, tuple):
+        elif isinstance(obj, tuple):
             return {"type": obj[0], "id": obj[1]}
         # JSONapi identifier object
         elif isinstance(obj, dict):
@@ -352,13 +355,13 @@ class API(object):
         # The regular expressions, which will match the uri path or not.
         escaped_uri = re.escape(self._uri)
         collection_re = escaped_uri\
-            + "/(?P<type>[^\/]+?)/?$"
+            + "/(?P<type>[^/]+?)/?$"
         resource_re = escaped_uri\
-            + "/(?P<type>[^\/]+?)/(?P<id>[^\/]+?)/?$"
+            + "/(?P<type>[^/]+?)/(?P<id>[^/]+?)/?$"
         relationship_re = escaped_uri\
-            + "/(?P<type>[^\/]+?)/(?P<id>[^\/]+?)/relationships/<(?P<relname>[^\/]+?)/?$"
+            + "/(?P<type>[^/]+?)/(?P<id>[^/]+?)/relationships/(?P<relname>[^/]+?)/?$"
         related_re = escaped_uri\
-            + "/(?P<type>[^\/]+?)/(?P<id>[^\/]+?)/<(?P<relname>[^\/]+?)/?$"
+            + "/(?P<type>[^/]+?)/(?P<id>[^/]+?)/(?P<relname>[^/]+?)/?$"
 
         # Collection
         match = re.fullmatch(collection_re, request.parsed_uri.path)

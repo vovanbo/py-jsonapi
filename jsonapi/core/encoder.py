@@ -188,35 +188,47 @@ class Relationship(EncoderMethod):
 
 class ToOneRelationship(Relationship):
 
-    def default_encode(self, encoder, resource, request, *, require_data=False):
-        d = dict()
-        d["links"] = self.links(encoder, resource)
-        if require_data:
-            related = getattr(resource, self.key)
-            related = encoder.api.ensure_identifier_object(related)
-            d["data"] = related
+    def encode(self, encoder, resource, request, *, require_data=False):
+        fencode = self.fencode or self.default_encode
+        d = fencode(encoder, resource, request, require_data=require_data)
+
+        # If *d* is only a resource, we need to wrap it in a proper
+        # JSONAPI relationship object.
+        if (not isinstance(d, dict)) or d is None:
+            d = dict(
+                data=encoder.api.ensure_identifier_object(d),
+                links=self.links(encoder, resource)
+            )
         return d
+
+    def default_encode(self, encoder, resource, request, *, require_data=False):
+        return getattr(resource, self.key)
 
 
 class ToManyRelationship(Relationship):
 
+    def encode(
+        self, encoder, resource, request, *, require_data=False, pagination=None
+        ):
+        fencode = self.fencode or self.default_encode
+        d = self.fencode(
+            encoder, resource, request, require_data=require_data,
+            pagination=pagination
+        )
+
+        # *d* may be only a list of resources. In this case, we need to
+        # serialize the resources and build the JSONAPI relationship object.
+        if not isinstance(d, dict):
+            d = dict(
+                data=[encoder.api.ensure_identifier_object(item) for item in d],
+                links=self.links(encoder, resource)
+            )
+        return d
+
     def default_encode(
         self, encoder, resource, request, *, require_data=False, pagination=None
         ):
-        if pagination:
-            # TODO: ...
-            raise PaginationNotSupported()
-
-        d = dict()
-        d["links"] = self.links(encoder, resource)
-        if require_data:
-            related = getattr(resource, self.key)
-            related = [
-                    encoder.api.ensure_identifier_object(resource)\
-                    for resource in related
-            ]
-            d["data"] = related
-        return d
+        return getattr(resource, self.key)
 
 
 # Meta
@@ -480,7 +492,7 @@ class Encoder(object):
         return d
 
     def serialize_relationship(
-        self, relname, resource, request, *, require_data=None, pagination=None
+        self, relname, resource, request, *, require_data=False, pagination=None
         ):
         """
         .. seealso::
