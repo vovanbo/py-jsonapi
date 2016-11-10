@@ -79,4 +79,4 @@ class ID(WriteableProperty):
         return None
 
     def default_get(self, schema, resource):
-        return getattr(resource, self.key)
+        return str(getattr(resource, self.key))

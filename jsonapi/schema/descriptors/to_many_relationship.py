@@ -86,20 +86,6 @@ class ToManyRelationship(Relationship):
             self.deleter(fdelete)
         return None
 
-    def adder(self, fadd):
-        """
-        Descriptor for the :attr:`fadd` method.
-        """
-        self.fadd = fadd
-        return self
-
-    def deleter(self, fremove):
-        """
-        Descriptor for the :attr:`fdelete` method.
-        """
-        self.fdelete = fdelete
-        return self
-
     def default_get(self, schema, resource, request):
         return getattr(resource, self.key)
 
@@ -109,15 +95,49 @@ class ToManyRelationship(Relationship):
         if self.fget:
             LOG.warning(
                 "The relationship '%s.%s' has a *getter*, but no *setter*. "\
-                "You should either define a *setter* or mark it as not "\
-                "*writable*.", schema.typename, self.name
+                "You should either define a *setter* or mark it as *not* "\
+                "writable.", schema.typename, self.name
             )
         return setattr(resource, self.key, new_relatives)
 
+    def adder(self, fadd):
+        """
+        Descriptor for the :attr:`fadd` method.
+        """
+        self.fadd = fadd
+        return self
+
     def default_add(self, schema, resource, data, new_relatives, request):
-        # TODO: ...
+        """
+        :raises NotImplementedError:
+        """
         raise NotImplementedError()
 
+    def add(self, schema, resource, data, new_relatives, request):
+        """
+        """
+        if self.fadd:
+            return self.fadd(schema, resource, data, new_relatives, request)
+        else:
+            return self.default_add(schema, resource, data, new_relatives, request)
+
+    def deleter(self, fremove):
+        """
+        Descriptor for the :attr:`fdelete` method.
+        """
+        self.fdelete = fdelete
+        return self
+
     def default_remove(self, schema, resource, data, deleted_relatives, request):
-        # TODO: ...
+        """
+        :raises NotImplementedError:
+        """
         raise NotImplementedError()
+
+    def delete(self, schema, resource, data, deleted_relatives, request):
+        """
+        """
+        if self.fadd:
+            return self.fadd(schema, resource, data, deleted_relatives, request)
+        else:
+            return self.default_add(schema, resource, data, deleted_relatives, request)

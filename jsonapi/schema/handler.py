@@ -33,6 +33,7 @@ import logging
 # local
 from jsonapi.core import response_builder
 from jsonapi.core.handler import Handler as BaseHandler
+from jsonapi.core.response import Response
 
 
 __all__ = [
@@ -75,7 +76,7 @@ class Collection(Handler):
     """
 
     def get(self, request):
-        data, pagination = self.schema.get_collection(request)
+        data, pagination = self.schema.get_collection(request=request)
         resp = response_builder.Collection(
             request=request, data=data, pagination=pagination
         )
@@ -107,7 +108,7 @@ class Resource(Handler):
     def get(self, request):
         resource_id = request.japi_uri_arguments["id"]
         resource = self.schema.get_resource(
-            resource_id, request.japi_include, request=request
+            resource_id, request=request, include=request.japi_include
         )
         resp = response_builder.Resource(request=request, data=resource)
         resp.fetch_include()
@@ -116,7 +117,7 @@ class Resource(Handler):
     def patch(self, request):
         resource_id = request.japi_uri_arguments["id"]
         resource = self.schema.update_resource(
-            resource_id, request.json, request=request
+            resource_id, data=request.json["data"], request=request
         )
         resp = response_builder.Resource(request=request, data=resource)
         resp.fetch_include()
@@ -152,7 +153,7 @@ class Relationship(Handler):
         relname = request.japi_uri_arguments["relname"]
         resource_id = request.japi_uri_arguments["id"]
         resource = self.schema.update_relationship(
-            relname, resource_id, request.json, request=request
+            relname, resource_id, data=request.json, request=request
         )
         resp = response_builder.Relationship(
             request=request, resource=resource, relname=relname
@@ -181,7 +182,7 @@ class ToManyRelationship(Relationship):
         relname = request.japi_uri_arguments["relname"]
         resource_id = request.japi_uri_arguments["id"]
         resource = self.schema.add_relationship(
-            relname, resource_id, request.json, request=request
+            relname, resource_id, data=request.json, request=request
         )
         resp = response_builder.Relationship(
             request=request, resource=resource, relname=relname
@@ -192,7 +193,7 @@ class ToManyRelationship(Relationship):
         relname = request.japi_uri_arguments["relname"]
         resource_id = request.japi_uri_arguments["id"]
         resource = self.schema.delete_relationship(
-            relname, resource_id, request.json, request=request
+            relname, resource_id, data=request.json, request=request
         )
         resp = response_builder.Relationship(
             request=request, resource=resource, relname=relname
@@ -218,9 +219,10 @@ class ToOneRelated(Related):
     def get(self, request):
         relname = request.japi_uri_arguments["relname"]
         resource_id = request.japi_uri_arguments["id"]
-        resource = self.schema.get_related(
+        resources = self.schema.get_related(
             relname, resource_id, request=request
         )
+        resource = resources[0] if resources else None
         resp = response_builder.Resource(request=request, data=resource)
         resp.fetch_include()
         return resp.to_response()

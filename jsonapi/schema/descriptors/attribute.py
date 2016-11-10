@@ -65,8 +65,12 @@ class Attribute(WriteableProperty):
         If true, the attribute is writable.
     """
 
-    def __init__(self, *, fget=None, fset=None, name="", doc=""):
-        super().__init__(fget=fget, fset=fset, name=name, doc=doc)
+    def __init__(
+        self, *, fget=None, fset=None, name="", doc="", writable=False
+        ):
+        super().__init__(
+            fget=fget, fset=fset, name=name, doc=doc, writable=writable
+        )
         return None
 
     def default_get(self, schema, resource, request):

@@ -55,27 +55,29 @@ class Includer(includer.Includer):
 
         # Convert the relationship descriptors of the schema to
         # includer methods.
-        for rel in filter(lambda rel: rel.to_one, schema.relationships):
-            self.add_includer_method(includer.ToOneRelationship(
+        for rel in filter(lambda rel: rel.to_one, schema.relationships.values()):
+            key = rel.key
+            meth = includer.ToOneRelationship(
                 name=rel.name,
                 remote_types=rel.remote_types,
-                fget=lambda self, res, req: rel.get(schema, res, req)
-            ))
-        for rel in filter(lambda rel: rel.to_many, schema.relationships):
-            self.add_includer_method(includer.ToManyRelationship(
+                fget=lambda self, resource, request:\
+                    rel.get(schema, resource, request)
+            )
+            self.add_includer_method(key, meth)
+
+        for rel in filter(lambda rel: rel.to_many, schema.relationships.values()):
+            key = rel.key
+            meth = includer.ToManyRelationship(
                 name=rel.name,
                 remote_types=rel.remote_types,
-                fget=lambda self, res, req: rel.get(schema, res, req)
-            ))
+                fget=lambda self, resource, request:\
+                    rel.get(schema, resource, request)
+            )
+            self.add_includer_method(key, meth)
         return None
 
     def fetch_resources(self, ids, request):
         """
-        .. hint::
-
-            This method may return a **coroutine**, if the underlying
-            schema is asynchronous.
-
         Forwards the call directly to :meth:`Schema.get_resources`.
         """
         return self.schema.get_resources(ids, request=request)

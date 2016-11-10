@@ -90,4 +90,4 @@ class ToOneRelationship(Relationship):
                 "You should either define a *setter* or mark it as not "\
                 "*writable*.", schema.typename, self.name
             )
-        return setattr(resource, d, new_relative)
+        return setattr(resource, self.key, new_relative)

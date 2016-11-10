@@ -34,8 +34,11 @@ beeing not as flexible as the core.
     :maxdepth: 2
 
     descriptors/index
-    schema
+    encoder
     handler
+    includer
+    schema
+    validator
 """
 
 # local
@@ -46,5 +49,64 @@ from .descriptors.meta import Meta
 from .descriptors.to_one_relationship import ToOneRelationship
 from .descriptors.to_many_relationship import ToManyRelationship
 
-from . import handler
 from .schema import Schema
+
+
+def add_schema(api, schema):
+    """
+    Adds a :class:`~jsonapi.schema.schema.Schema` to the API. The
+    encoder, includer and handlers are created automatic and also added
+    to the API.
+
+    :arg ~jsonapi.schema.schema.Schema schema:
+        A schema
+    """
+    from . import handler
+    from .includer import Includer
+    from .encoder import Encoder
+
+    schema.init_api(api)
+
+    # Create the encoder and includer.
+    api.add_type(
+        encoder=Encoder(schema), includer=Includer(schema)
+    )
+
+    # Create all handlers.
+    api.add_handler(
+        handler=handler.Collection(api=api, schema=schema),
+        typename=schema.typename,
+        endpoint_type="collection"
+    )
+    api.add_handler(
+        handler=handler.Resource(api=api, schema=schema),
+        typename=schema.typename,
+        endpoint_type="resource"
+    )
+    for rel in filter(lambda rel: rel.to_one, schema.relationships.values()):
+        api.add_handler(
+            handler=handler.ToOneRelationship(api=api, schema=schema),
+            typename=schema.typename,
+            endpoint_type="relationship",
+            relname=rel.name
+        )
+        api.add_handler(
+            handler=handler.ToOneRelated(api=api, schema=schema),
+            typename=schema.typename,
+            endpoint_type="related",
+            relname=rel.name
+        )
+    for rel in filter(lambda rel: rel.to_many, schema.relationships.values()):
+        api.add_handler(
+            handler=handler.ToManyRelationship(api=api, schema=schema),
+            typename=schema.typename,
+            endpoint_type="relationship",
+            relname=rel.name
+        )
+        api.add_handler(
+            handler=handler.ToManyRelated(api=api, schema=schema),
+            typename=schema.typename,
+            endpoint_type="related",
+            relname=rel.name
+        )
+    return None

@@ -80,11 +80,15 @@ class Schema(object):
         #: The :class:`~jsonapi.core.api.API`, which owns this schema.
         self.api = None
 
-        #: The collection uri of this type.
-        self.uri = None
+        self.id = getattr(self, "id", None)
+        self.attributes = dict()
+        self.relationships = dict()
+        self.meta = dict()
+        self.links = dict()
+        self._find_descriptors()
         return None
 
-    def init_api(self, api, uri):
+    def init_api(self, api):
         """
         Called, when the *Schema* is added to an API.
 
@@ -93,9 +97,46 @@ class Schema(object):
         assert self.api is None or self.api is api
 
         self.api = api
-        self.uri = uri
         return None
 
+    def add_descriptor(self, key, prop):
+        """
+        Adds a descriptor to the schema.
+
+        :arg str key:
+            The name of the class variable pointing to the descriptor
+        :arg ReadableProperty prop:
+            The descriptor
+        """
+        prop.name = prop.name or key
+        prop.key = key
+
+        if isinstance(prop, Attribute):
+            self.attributes[prop.name] = prop
+        elif isinstance(prop, (ToOneRelationship, ToManyRelationship)):
+            self.relationships[prop.name] = prop
+        elif isinstance(prop, Link):
+            self.links[prop.name] = prop
+        elif isinstance(prop, Meta):
+            self.meta[prop.name] = prop
+        elif isinstance(prop, ID):
+            self.id = prop
+        return None
+
+    def _find_descriptors(self):
+        """
+        """
+        types = (
+            Attribute, ToOneRelationship, ToManyRelationship, Link, Meta, ID
+        )
+
+        cls = type(self)
+        for key in dir(cls):
+            prop = getattr(cls, key)
+            if not isinstance(prop, types):
+                continue
+            self.add_descriptor(key, prop)
+        return None
 
     def create_resource(self, data, *, request):
         """
@@ -125,18 +166,18 @@ class Schema(object):
         # Get all attributes, for which a descriptor exists.
         attributes = data.get("attributes", dict())
         attributes = {
-            k: v for k, v in attributes.items() if k in self.__attributes
+            k: v for k, v in attributes.items() if k in self.attributes
         }
 
         # Get all relationships, for which a descriptor exists.
         relationships = data.get("relationships", dict())
         relationships = {
-            k: v for k, v in relationships.items() if k in self.__relationships
+            k: v for k, v in relationships.items() if k in self.relationships
         }
 
         # Load the relatives.
         relatives = utilities.load_relationships_object(
-            relationships, self.api, request
+            relationships, request=request
         )
 
         # Pass the relatives and the attributes to the constructor.
@@ -176,9 +217,13 @@ class Schema(object):
             resource = self.get_resource(resource, request=request)
 
         if "attributes" in data:
-            self._update_attributes(resource, d["attributes"], request)
+            self._update_attributes(
+                resource, data["attributes"], request=request
+            )
         if "relationships" in data:
-            self._update_relationships(resource, d["relationships"], request)
+            self._update_relationships(
+                resource, data["relationships"], request=request
+            )
         return resource
 
     def _update_attributes(self, resource, data, *, request):
@@ -187,7 +232,7 @@ class Schema(object):
         attributes object *data*.
         """
         for name, value in data.items():
-            attr = self.__attributes.get(name)
+            attr = self.attributes.get(name)
             if attr is None:
                 continue
             attr.set(self, resource, value, request)
@@ -198,12 +243,10 @@ class Schema(object):
         Updates the resource's relationships using the JSON API relationships
         object *data*.
         """
-        relatives = utilities.load_relationships_object(
-            data, request=request
-        )
+        relatives = utilities.load_relationships_object(data, request=request)
 
         # Update the relationships using the descriptors.
-        for name, value in relationships.items():
+        for name, value in data.items():
             rel = self.relationships.get(name)
             if rel is None:
                 continue
@@ -260,7 +303,10 @@ class Schema(object):
         rel = self.relationships.get(relname)
         assert rel is not None
 
-        relatives = rel.get(self, resource, request)
+        if isinstance(resource, str):
+            resource = self.get_resource(resource, request=request)
+
+        relatives = rel.get(self, resource, request=request)
         if rel.to_one:
             relatives = [relatives] if relatives is not None else []
         return relatives
@@ -291,10 +337,9 @@ class Schema(object):
         if isinstance(resource, str):
             resource = self.get_resource(resource, request=request)
 
-        new_relatives = self.api.get_resources(
-            utilities.collect_identifiers(data), request=request
+        new_relatives = utilities.load_relationship_object(
+            data, request=request
         )
-
         rel.set(self, resource, data, new_relatives, request)
         return resource
 
@@ -325,10 +370,7 @@ class Schema(object):
         if isinstance(resource, str):
             resource = self.get_resource(resource, request=request)
 
-        new_relatives = self.api.get_resources(
-            utilities.collect_identifiers(data), request=request
-        )
-
+        new_relatives = utilities.load_relationship_object(data, request)
         rel.add(self, resource, data, new_relatives, request)
         return resource
 
@@ -360,10 +402,7 @@ class Schema(object):
         if isinstance(resource, str):
             resource = self.get_resource(resource, request=request)
 
-        deleted_relatives = self.api.get_resources(
-            utilities.collect_identifiers(data), request=request
-        )
-
+        deleted_relatives = utilities.load_relationship_object(data, request)
         rel.delete(self, resource, data, deleted_relatives, request)
         return resource
 
@@ -428,7 +467,7 @@ class Schema(object):
         The default implementation uses :meth:`get_resources` to fetch one
         resource.
         """
-        resources = self.get_resources([id_], include, request)
+        resources = self.get_resources([id_], include=include, request=request)
         assert len(resources) == 1
 
         resource_id, resource = resources.popitem()

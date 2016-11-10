@@ -55,40 +55,59 @@ class Encoder(encoder.Encoder):
 
         #: The schema, which is used to get the field values.
         self.schema = schema
+
+        #: The typename from the schema.
+        self.typename = schema.typename
+
+        #: The resource class from the schema.
+        self.resource_class = schema.resource_class
+
+        # Convert the schema properties to encoder methods.
+        for attr in self.schema.attributes.values():
+            key = attr.key
+            meth = encoder.Attribute(
+                name=attr.name,
+                fencode=lambda encoder, resource, request: \
+                    attr.get(schema, resource, request)
+            )
+            self.add_encoder_method(key, meth)
+
+        for rel in filter(lambda rel: rel.to_one, schema.relationships.values()):
+            key = attr.key
+            meth = encoder.ToOneRelationship(
+                name=rel.name,
+                fencode=lambda encoder, resource, request, *, require_data:\
+                    rel.get(schema, resource, request)
+            )
+            self.add_encoder_method(key, meth)
+
+        for rel in filter(lambda rel: rel.to_many, schema.relationships.values()):
+            key = attr.key
+            meth = encoder.ToManyRelationship(
+                name=rel.name,
+                fencode=lambda encoder, resource, request, *, require_data, pagination:\
+                    rel.get(schema, resource, request)
+            )
+            self.add_encoder_method(key, meth)
+
+        for meta in schema.meta.values():
+            key = attr.key
+            meth = encoder.Meta(
+                name=meta.name,
+                fencode=lambda encoder, resource, request:\
+                    meta.get(schema, resource, request)
+            )
+            self.add_encoder_method(key, meth)
+
+        for link in schema.links.values():
+            key = attr.key
+            meth = encoder.Link(
+                name=link.name,
+                fencode=lambda encoder, resource, request:\
+                    link.get(schema, resource, request)
+            )
+            self.add_encoder_method(key, meth)
         return None
 
     def id(self, resource):
-        return self.schema.id(resource)
-
-    def serialize_attributes(self, resource, request):
-        fields = request.japi_fields.get(self.typename)
-        d = super().serialize_attributes(resource, request)
-        for name, attr in self.schema.attributes.items():
-            if fields is None or name in fields:
-                d[name] = attr.get(self.schema, resource, request)
-        return d
-
-    def serialize_relationship(
-        self, relname, resource, request, *, require_data=False,
-        pagination=None
-        ):
-        """
-        """
-        if relname not in self.schema.relationships:
-            return super().serialize_relationship(
-                relname, resource, request, require_data=require_data,
-                pagination=pagination
-            )
-        raise Exception("ononsognosg")
-
-    def serialize_links(self, resource, request):
-        d = super().serialize_links(resource, request)
-        for name, link in self.schema.links.items():
-            d[name] = link.get(self.schema, resource, request)
-        return d
-
-    def serialize_meta(self, resource, request):
-        d = super().serialize_meta(resource, request)
-        for name, meta in self.schema.meta.items():
-            d[name] = meta.get(self.schema, resource, request)
-        return None
+        return self.schema.id.get(self.schema, resource)
