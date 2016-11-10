@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import flask
+
 from jsonapi_flask.api import API as FlaskAPI
 from jsonapi.schema import add_schema
 

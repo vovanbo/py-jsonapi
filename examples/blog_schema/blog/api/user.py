@@ -37,7 +37,6 @@ class UserSchema(jsonapi.schema.Schema):
     def update_resource(self, user, data, *, request):
         user = super().update_resource(user, data, request=request)
         session = request.settings["sql_session"]
-        print(user.name)
         session.add(user)
         session.commit()
         return user
