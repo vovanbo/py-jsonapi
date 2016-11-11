@@ -3,46 +3,36 @@ Changelog
 
 *   1.0.0b0
 
-    *   This library now follows a **model-view** approach. This gives
-        the developer more control about the serialization and patching of
-        resources.
+    This library is now splitted in two packages: *jsonapi.core* and
+    *jsonapi.schema*.
 
-        Implementing a permission system is now very easy.
+    The *jsonapi.core* package is essentially a collection of tools, which make
+    it easier to implement a JSON API.
+    The *jsonapi.schema* package is built on top of the *core* and is meant
+    to be used in combination with existing ORMs.
 
-        The *Database*, *Schema*, *Serializer* and *Unserializer* classes
-        are now combined to a new class *Type*. A *Type* can be implemented
-        by using decorators, similar to the *marker* in 0.3.0b0.
+    The old architecture of *py-jsonapi* was not flexible enough for the
+    type of applications I develop and wish to develop. Problems occured, when
+    authentication and authorization should be integrated in the encoding
+    and patching process (*"is the client allowed to read this attribute,
+    can he change the value of this relationship?"*)
 
-        There is now no need for a *bulk_database*, because each *Type*
-        has all methods needed to integrate it into the JSON API.
+    The new *jsonapi.core* has a clean structure and the modules are highly
+    independant. Used together, they allow you to built an API, which scales.
+    A usual JSON API request can be described by different phases:
 
-    *   The extensions (sqlalchemy, mongoengine, motorengine, flask, tornado)
-        are now separate projects and can be installed with pip. This change
-        makes the development and versioning easier.
+    1.  parse the request parameters (done by the *Request* class)
+    2.  validate the document sent from the client (done by the *Validator*)
+    3.  patch the resource (completely up to you)
+    4.  compose the response document
 
-    *   The *jsonapi.base.utilities.auto_type()* function replaces the old
-        schemas. Extensions will register a *Type* factory and the *auto_type()*
-        function will create a new *Type* for your model automatic.
+        1. include related resources (done by the *Includer* class)
+        2. serialize all resources (done by the *Encoder* class)
 
-        .. code-block:: python
-
-            # In 0.3.0b0
-            user_schema = jsonapi.mongoengine.Schema(User)
-            api.add_type(user_schema)
-
-            # In 1.0.0b0
-            UserAPI = jsonapi.base.utilities.auto_type(User))
-            api.add_type(UserAPI())
-
-            # or even shorter
-            jsonapi.base.utilities.auto_type(User, api=api)
-
-    *   **Everything, what was possible in 0.3.0b0 is still possible in 1.0.0b0+**
-
-    These changes were necessairy, because implementing a new API was very
-    complicated in 0.3.0b0, when no extension was available for the target web
-    framework or database. Writing a good permission system, which prevents
-    the client from reading or editing some fields was not possible.
+    If you want more abstraction, you can use the *jsonapi.schema* package.
+    After defining a *Schema*, the validators, includer and request
+    handlers are generated automatic and you are done with a few lines of
+    code.
 
 *   0.3.0b0
 
