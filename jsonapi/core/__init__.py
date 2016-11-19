@@ -26,15 +26,16 @@
 jsonapi.core
 ============
 
-.. sidebar:: Asyncio Version
+The core package of *py-jsonapi* contains the definitions for interfaces and
+powerful, yet simple tools, which help you implementing a robust
+http://jsonapi.org compliant API.
 
-    You can find the base and schema for asynchronous frameworks here:
-    :mod:`jsonapi.asyncio`.
+Each module aims to implement only one feature of the json:api specifiction.
+Thus you can use most of them without an actual :class:`~jsonapi.core.api.API`
+instance and pick only the ones you need.
 
-This is the *base* of the *py-jsonapi* library. It contains the definitions for
-interfaces (schema, handlers), which can be used to implement a JSON:API
-compliant API.
-
+If you prefer a higher level of abstraction, take a look
+:mod:`~jsonapi.schema` pacakge and the various :ref:`extensions`.
 
 .. Remember to add a .rst file for each Python module listed here in the
 .. correct docs folder.

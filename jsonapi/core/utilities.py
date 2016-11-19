@@ -27,7 +27,7 @@ jsonapi.core.utilities
 ======================
 
 This module contains some helpers, which are frequently needed in different
-modules.
+modules and situations.
 """
 
 # std
@@ -41,9 +41,7 @@ __all__ = [
     "load_relationships_object",
     "load_relationship_object",
     "fetch_resources",
-    "fetch_resources",
-    "register_auto_type",
-    "auto_type"
+    "fetch_resources"
 ]
 
 
@@ -58,6 +56,8 @@ class Symbol(object):
 
         bar = Symbol()
         assert bar != foo
+
+        assert Symbol("foo") != Symbol("foo")
     """
 
     def __init__(self, name=""):
@@ -79,9 +79,7 @@ class Symbol(object):
 
 def collect_identifiers(d, with_data=True, with_meta=False):
     """
-    Walks through the document *d* and saves all type identifers. This means,
-    that each time a dictionary in *d* contains a *type* and *id* key, this
-    pair is added to a set and later returned:
+    Returns all identifers found in the document *d*:
 
     .. code-block:: python3
 
@@ -145,9 +143,9 @@ def rebase_include(new_root, include):
         [["articles"]]
 
     :arg str new_root:
-        The new root of all include paths in include.
+        The new root of all include paths
     :arg list include:
-        A list of include paths.
+        A list of include paths
 
     :rtype: list
     :returns:
@@ -162,7 +160,8 @@ def rebase_include(new_root, include):
 
 def fetch_resources(ids, request):
     """
-    Loads many resources.
+    Loads many resources using the :class:`~jsonapi.core.includer.Includer`
+    instances. The ids of in *ids* may have different typenames.
 
     :arg list ids:
         A list of identifiers tuples.
@@ -191,7 +190,7 @@ def fetch_resources(ids, request):
 
 def fetch_resource(id_, request):
     """
-    Loads many resources.
+    Loads the resource with the given id.
 
     :arg list id_:
         An identifier (object or tuple).
@@ -218,6 +217,24 @@ def load_relationships_object(d, request):
     """
     Loads the relatives in a relationships object and returns a dictionary,
     which maps the relationship names to the related resources.
+
+    .. code-block:: python3
+
+        >>> load_relationships_object({
+        ... "author": {
+        ...     "data": {"type": "User", "id": "42"}
+        ...     },
+        ... "comments": {
+        ...     "data": [
+        ...         {"type": "Comment", "id": "12"},
+        ...         {"type": "Comment", "id": "28"}
+        ...        ]
+        ...     }
+        ... }, request=request)
+        {
+            "author": <User(id=42)>,
+            "comments": [<Comment(id=12)>, <Comment(id=28)>]
+        }
 
     :arg dict d:
         A JSON API relationships object
@@ -276,63 +293,9 @@ def load_relationship_object(d, request):
     data = d["data"]
     if data is None:
         return None
-    if isinstance(data, dict):
+    elif isinstance(data, dict):
         return fetch_resource(data, request)
-    if isinstance(data, list):
+    elif isinstance(data, list):
         return fetch_resources(data, request)
-    raise TypeError("*d* is not a valid relationship object.")
-
-
-# The type factory
-__auto_type_factories = []
-
-def register_auto_type(func):
-    """
-    Registers a new *auto_type()* function. This function receives a *model*
-    and must either return a new :class:`~jsonapi.core.schema.type.Type`
-    *class* (not an instance!), a list of *Type* classes or *None*.
-
-    This function can be used as decorator::
-
-        @register_auto_type
-        def neo_auto_type(model):
-            # ...
-            return Type
-
-    :arg callable func:
-    """
-    global __auto_type_factories
-    __auto_type_factories.append(func)
-    return func
-
-
-def auto_type(model, api=None):
-    """
-    A type factory for new JSON API types. If possible, we will create
-    a JSON API Type based on the model automatic. If an API is given,
-    we will also register the new Type.
-
-    :arg model:
-    :arg ~jsonapi.core.api.API api:
-    :rtype: ~jsonapi.core.schema.Type
-    """
-    warnings.warn(
-        "The *auto_type()* feature is still experimental. Use with care.",
-        FutureWarning
-    )
-
-    global __auto_type_factories
-
-    Types = None
-    for func in __auto_type_factories:
-        Types = func(model)
-        if Types:
-            break
-
-    if Types is not None and api:
-        if isinstance(Types, list):
-            for Type in Types:
-                api.add_type(Type())
-        else:
-            api.add_type(Types())
-    return Types
+    else:
+        raise TypeError("*d* is not a valid relationship object.")

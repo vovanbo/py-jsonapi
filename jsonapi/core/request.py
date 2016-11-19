@@ -27,7 +27,8 @@ jsonapi.core.request
 ====================
 
 This module contains a class for representing HTTP requests. It helps to get
-and parse the query arguments, which are defined in the JSON API specification.
+and parse the various query arguments, which are defined in the JSON:API
+specification.
 """
 
 # std
@@ -52,7 +53,7 @@ __all__ = [
 
 class Request(object):
     """
-    Wraps a request object, which can be used to call an API's
+    Describes an HTTP request. A request can be used to call an API's
     :meth:`~jsonapi.core.api.API.handle_request` method.
 
     :arg str uri:
@@ -63,7 +64,7 @@ class Request(object):
         The HTTP request headers
     :arg bytes body:
         The HTTP request body
-    :arg jsonapi.core.api.API api:
+    :arg ~jsonapi.core.api.API api:
         The api object, which handles the request (can be set later)
     :arg dict settings:
         A dictionary, containing custom information associated with the
@@ -73,9 +74,16 @@ class Request(object):
     def __init__(self, uri, method, headers, body, api=None, settings=None):
         """
         """
+        #: The requested uri
         self.uri = uri
+
+        #: The HTTP method (get, patch, delete, ...)
         self.method = method.lower()
+
+        #: The HTTP headers
         self.headers = {key.lower(): value for key, value in headers.items()}
+
+        #: The request body (:class:`bytes` or :class:`str`)
         self.body = body
         assert isinstance(body, (bytes, str))
 
@@ -227,6 +235,36 @@ class Request(object):
 
                 filters.append((field, filtername, rule))
         return filters
+
+    def has_filter(self, field, filtername):
+        """
+        :arg str field:
+        :arg str filtername:
+
+        :rtype: bool
+        :returns:
+            True, if at least one filter of the given type has been applied on
+            the *field*.
+        """
+        return any(
+            field == item[0] and filtername == item[1]\
+            for item in self.japi_filters
+        )
+
+    def get_filter(self, field, filtername, default=None):
+        """
+        If the filter *filtername* has been applied on the *field*, the
+        *filterrule* is returned and *default* otherwise.
+
+        :arg str field:
+        :arg str filtername:
+        :arg default:
+            A fallback value for the filter.
+        """
+        for item in self.japi_filters:
+            if item[0] == field in item[1] == filtername:
+                return item[2]
+        return default
 
     @cached_property
     def japi_fields(self):

@@ -26,7 +26,11 @@
 jsonapi.core.api
 ================
 
-The API knows all supported types and is able to handle a JSON API request.
+The :class:`~jsonapi.core.api.API` class is the glue, which holds all
+components together. In the simplest case, it works as container for all
+encoders. In a more advanced setup, the api is also responsible for the
+request handling (routing, dispatching, ...).
+
 By overriding the :meth:`API.handle_request` method, it can be easily integrated
 in other web frameworks.
 """
@@ -65,34 +69,25 @@ LOG = logging.getLogger(__file__)
 ARG_DEFAULT = []
 
 
-class EndpointTypes(enum.Enum):
-    """
-    The different endpoint types known to the API.
-    """
-
-    Collection = 0
-    Resource = 1
-    Relationship = 2
-    Related = 3
-
-
 class API(object):
     """
     This class is responsible for the request dispatching. It knows all
-    resource classes, schemas and api endpoints.
+    resource classes, encoders, includers and api endpoints.
 
     :arg str uri:
         The root uri of the whole API.
     :arg bool debug:
         If true, exceptions are not catched and the API is more verbose.
     :arg dict settings:
-        A dictionary containing settings, which can be used by extensions.
+        A dictionary, which can be used by extensions for configuration stuff.
     """
 
     def __init__(self, uri, debug=True, settings=None):
         """
         """
         # True, if in debug mode.
+        # Please note, that we never access the *_debug* attribute,
+        # only the *debug* property.
         self._debug = debug
 
         self._uri = uri.rstrip("/")
@@ -117,8 +112,7 @@ class API(object):
         # ("User", "related", "posts")
         # ("User", "relationship", "posts")
         #
-        # TODO: Note, that the routing and request handling is still open for
-        #       discussion.
+        # NOTE: The routing and request handling is still open for discussion.
         self._handler = dict()
 
         #: The global jsonapi object, which is added to each response.
@@ -232,14 +226,25 @@ class API(object):
     def add_type(self, encoder, includer=None):
         """
         Adds an encoder to the API. This method will call
-        :meth:`~jsonapi.core.encoder.Encoder.init_api` to bind the encoder to
-        the API.
+        :meth:`~jsonapi.core.encoder.Encoder.init_api`, which binds the encoder
+        instance to the API.
 
         :arg ~jsonapi.core.encoder.Encoder encoder:
         :arg ~jsonapi.core.includer.Includer includer:
         """
         resource_class = encoder.resource_class
         typename = encoder.typename
+
+        if resource_class is None:
+            LOG.warning(
+                "The encoder '%s' is not assigned to a resource class.",
+                self.typename or type(self).__name__
+            )
+        if typename is None:
+            LOG.warning(
+                "The encoder '%s' has no typename.",
+                self.typename or type(self).__name__
+            )
 
         # Add the encoder to the API.
         encoder.init_api(self)
@@ -251,14 +256,15 @@ class API(object):
         if includer is not None:
             includer.init_api(self)
             self._includer[typename] = includer
-            self._resource_class_to_includer[resource_class] = includer
+            if resource_class:
+                self._resource_class_to_includer[resource_class] = includer
         return None
 
     def add_handler(self, handler, typename, endpoint_type, relname=None):
         """
         .. warning::
 
-            The final routing mechanisms and URL patterns are still open for
+            The final routing mechanisms and URL patterns are still up for
             discussion.
 
         Adds a new :class:`~jsonapi.core.handler.Handler` to the API.
@@ -266,10 +272,12 @@ class API(object):
         :arg ~jsonapi.core.handler.Handler handler:
             A request handler
         :arg str typename:
-        :arg ~jsonapi.core.api.EndpointTypes endpoint_type:
+        :arg str endpoint_type:
+            ``"collection"``, ``"resource"``, ``"relationship"``
+            or ``"related"``
         :arg str relname:
-            The name of the relationship, if the *endpoint_type* is
-            :attr:`EndpointTypes.relationship` or :attr:`EndpointTypes.Related`.
+            The name of the relationship, if the *endpoint_type*
+            is ``"related"`` or ``"relationship"``.
         """
         if endpoint_type == "collection":
             self._handler[(typename, endpoint_type)] = handler
@@ -325,6 +333,10 @@ class API(object):
 
     def ensure_identifier(self, obj):
         """
+        .. todo::
+
+            Return a :class:`collections.namedtuple`.
+
         Does the same as :meth:`ensure_identifier_object`, but returns the two
         tuple identifier object instead of the document:
 
@@ -351,7 +363,7 @@ class API(object):
 
     def _get_handler(self, request):
         """
-        Returns the handler, which is responsible for the request's endpoint.
+        Returns the handler, which is responsible for the requested endpoint.
         """
         # The regular expressions, which will match the uri path or not.
         escaped_uri = re.escape(self._uri)
@@ -396,10 +408,19 @@ class API(object):
     def prepare_request(self, request):
         """
         Called, before the :meth:`~jsonapi.core.handler.Handler.handle`
-        of the request handler is called.
+        method of the request handler is called.
 
         You *can* overridde this method to modify the request. (Add some
-        settings, headers, ...).
+        settings, headers, a database connection...).
+
+        .. code-block:: python3
+
+            def prepare_request(self, request):
+                super().prepare_request(request)
+                request.settings["db"] = DBSession()
+                request.settings["user"] = current_user
+                request.settings["oauth"] = current_oauth_client
+                return None
         """
         return None
 
@@ -408,10 +429,10 @@ class API(object):
         Handles a request and returns a response object.
 
         This method should be overridden for integration in other frameworks.
-        It is the **entry point** for all requests handled by this library.
+        It is the **entry point** for all requests handled by this API instance.
 
-        :type request: ~jsonapi.core.request.Request
-        :arg request: The request, which should be handled.
+        :arg ~jsonapi.core.request.Request request:
+            The request, which should be handled.
 
         :rtype: ~jsonapi.core.request.Response
         """
@@ -507,7 +528,7 @@ class API(object):
         :arg resource:
             A resource instance, whichs type is known to the API.
         :arg ~jsonapi.core.request.Request request:
-            The current request context
+            The request context
 
         :rtype: dict
         :returns:

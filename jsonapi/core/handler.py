@@ -26,16 +26,28 @@
 jsonapi.core.handler
 ====================
 
-The JSON API specification knows four different endpoint types:
+This module contains the base class for all *py-jsonapi* resource handlers.
+The implementation is straight forward::
 
-*   Collection
-*   Resource
-*   Relationship
-*   and Related.
+    class Article(Handler):
 
-This module contains the handlers, which implement the logic for handling
-a request to one of those endpoints, based on a
-:class:`~jsonapi.core.schema.type.Type`.
+        def get(self, request):
+            pagination = jsonapi.core.pagination.NumberSize.from_request(
+                request, query(Article).count()
+            )
+            articles = query(Article)\\
+                .limit(pagination.limit)\\
+                .offset(pagination.offset)\\
+                .all()
+            return jsonapi.core.response_builder.Collection(request, data=articles)
+
+The handler receives a :class:`~jsonapi.core.request.Request` instance as
+parameter and returns either a :class:`~jsonapi.core.response.Response`
+or a :class:`~jsonapi.core.response_builder.ResponseBuilder` object.
+
+If a :class:`~jsonapi.core.response_builder.ResponseBuilder` is returned,
+the :meth:`~jsonapi.core.response_builder.IncludeMixin.fetch_include` method
+is called automatic.
 """
 
 # std
@@ -55,7 +67,7 @@ LOG = logging.getLogger(__file__)
 
 class Handler(object):
     """
-    The interface for request handlers.
+    The interface for a request handler.
 
     :arg ~jsonapi.core.api.API api:
         The API, which owns this handler.
@@ -66,11 +78,26 @@ class Handler(object):
         return None
 
     def init_api(self, api):
+        """
+        Binds the handler to the *api*.
+
+        :arg ~jsonapi.core.api.API:
+        """
         assert self.api is None or self.api is api
         self.api = api
         return None
 
     def handle(self, request):
+        """
+        Calls the correct handler method (*get*, *patch*, ...) depending on HTTP
+        :attr:`~jsonapi.core.request.Request.method`.
+
+        :arg ~jsonapi.core.request.Request request:
+
+        :returns:
+            A :class:`~jsonapi.core.response.Response` or
+            :class:`~jsonapi.core.response_builder.ResponseBuilder`
+        """
         if request.method == "delete":
             return self.delete(request)
         elif request.method == "get":

@@ -35,7 +35,7 @@ object must contain an *id* and a *type* attribute. However, the validator
 does not check, if the type exists.
 
 If you want more precise validators, check out the :mod:`jsonapi.core.validator`
-module, which helps you building an enhanced validator easily.
+module, which helps you building advanced validators.
 
 .. seealso::
 

@@ -39,47 +39,125 @@ to define an encoder very **easily** in a few lines of code::
         author = ToOneRelationship()
         comments = ToManyRelationship()
 
-
-But if you want, you are free to fine-tune the serialization::
-
-    class ArticleEncoder(Encoder):
-        resource_class = Article
-        typename = "article"
-
-        def id(self, article):
-            return str(article.id)
-
-        @Attribute(name="TITLE")
-        def title(self, article, request):
-            return article.title
-
-        @ToOneRelationship()
-        def author(self, article, request, *, require_data=False):
-            d = dict()
-            d["data"] = {"type": "User", "id": str(article.author_id)}
-            return d
-
-        @ToManyRelationship()
-        def comments(self, article, request, *, require_data=False, pagination=None):
-            if pagination:
-                raise BadRequest(
-                    detail="The comment relationship does not support pagination."
-                )
-
-            d = dict()
-            d["data"] = [
-                {"type": "Comment", "id": str(comment_id)}\\
-                for comment_id in article.comment_ids
-            ]
-            return d
-
         @Meta()
         def cache_age(self, article, request):
             return "42 minutes"
 
         @Link()
         def image_sprite(self, article, request):
-            return "/static/article-images/{}".format(article.id)
+            return url_for("static", file="image_sprite/{}".format(article.id))
+
+attributes
+----------
+
+The easiest way of encoding attributes is this one::
+
+    title = Attribute()
+
+The encoder will loook for an attribute ``article.title`` and add it to the
+json:api *attributes* object.
+
+The json:api field name of an attribute can be changed with the *name*
+parameter::
+
+    title = Attribute(name="TiTlE")
+
+If you want more control about the serialization, you can implement a *getter*
+for the attribute::
+
+    @Attribute()
+    def title(self, article, request):
+        return article.get_title()
+
+relationships
+-------------
+
+to-one
+^^^^^^
+
+Defining relationships is as easy as defining attributes::
+
+    author = ToOneRelationship()
+
+The encoder will now look for an attribute ``article.author``, which must be
+``None`` or point to related resource. (We need the actual resource object in
+this case and not only an identifier!)
+
+And again, you can customize the serialization::
+
+    @ToOneRelationship()
+    def author(self, article, request, *, require_data=False):
+        d = dict()
+        if article.author_id is None:
+            d["data"] = None
+        else:
+            d["data"] = {"type": "User", "id": str(article.author_id)}
+        return d
+
+The *related* and *self* links of the relationship are added automatic.
+
+You may have noticed the *require_data* parameter. If this parameter is *False*,
+you can omit the *data* object. In this case, you can return the
+:attr:`Omit` symbol::
+
+    @ToOneRelationship()
+    def author(self, article, request, *, require_data=False):
+        return article.load_author() if require_data else Omit
+
+to-many
+^^^^^^^
+
+The only difference between a *to-one* and a *to-many* relationship is,
+that the *to-many* relationship can be paginated::
+
+    @ToManyRelationship()
+    def comments(self, article, request, *, require_data=False, pagination=None):
+        if pagination is None:
+            pagination = jsonapi.core.pagination.NumberSize(
+                uri=request.api.relationship_uri(article, "comments"),
+                number=0,
+                size=25,
+                total_resources=article.comments.count()
+            )
+
+        comments = article.limit(pagination.limit).offset(pagination.offset)
+        return (comments, pagination)
+
+links
+-----
+
+Defining links is similar to defining attributes::
+
+    image_sprite = Link()
+
+In this case, the encoder looks for the property ``article.image_sprite`` and
+includes it into the resource's *links object*.
+
+You can also compute the link here::
+
+    @Link()
+    def image_sprite(self, article, request):
+        d = dict()
+        d["href"] = url_for(
+            "static", filename="image_sprite/{}.png".format(article.id)
+        )
+        d["meta"] = {
+            "foo": "Some meta stuff..."
+        }
+        return d
+
+meta
+----
+
+Meta information can be included with the :class:`Meta` descriptor::
+
+    cached_since = Meta()
+
+or::
+
+    @Meta()
+    def cache_age(self, article, request):
+        return cache.get_age(article)
 """
 
 # std
@@ -106,8 +184,7 @@ class EncoderMethod(object):
     """
     A method/attribute, which contains information how an attribute,
     relationship, meta or link should be serialized. An EncoderMethod
-    is always defined on a *class*. When it :meth:`bound <bind>`, it is
-    associated with a specific encoder (class vs instance).
+    is always defined on the class level.
 
     :arg str name:
         The name of the encoded object in the JSON API document.
@@ -281,12 +358,7 @@ class Encoder(object):
         """
         self.__api = api
 
-        # Check for a resource class and typename.
-        if not self.resource_class:
-            LOG.warning(
-                "The encoder '%s' is not assigned to a resource class.",
-                self.typename or type(self).__name__
-            )
+        # Use the name of the resource class as fallback for the typename.
         if self.resource_class and not self.typename:
             self.typename = self.resource_class.__name__
 
@@ -346,7 +418,7 @@ class Encoder(object):
         Called, when the encoder is assigned to an API.
 
         :arg ~jsonapi.core.api.API api:
-            The owning API
+            The API, which owns this encoder.
         """
         assert self.__api is None or self.__api is api
         self.__api = api
@@ -358,7 +430,7 @@ class Encoder(object):
 
         Returns the id (string) of the resource. The default implementation
         looks for a property ``resource.id``, an id method ``resource.id()``,
-        ``resource.get_id()`` or an key ``resource["id"]``.
+        ``resource.get_id()`` or a key ``resource["id"]``.
 
         :arg resource:
             A resource object
@@ -509,7 +581,7 @@ class Encoder(object):
             The request context
         :arg bool require_data:
             If true, the relationship object must contain a *data* member.
-        :arg pagination:
+        :arg ~jsonapi.core.pagination.BasePagination pagination:
             An object describing the pagination of the relationship. The
             pagination is only used for *to-many* relationships.
 

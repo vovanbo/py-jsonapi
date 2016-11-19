@@ -26,8 +26,8 @@
 jsonapi.core.response_builder
 =============================
 
-This module contains some helper classes, which help building the most common
-JSON API response types.
+The response builders make it easier to create common response types (
+collection, resource, new resource, relationship, ...).
 """
 
 # std
@@ -74,7 +74,7 @@ class ResponseBuilder(object):
     @property
     def request(self):
         """
-        The request, to which we built the response.
+        The request context
         """
         return self.__request
 
@@ -116,11 +116,6 @@ class IncludeMixin(object):
 
     def fetch_include(self):
         """
-        .. hint::
-
-            This method may return a **coroutine** if the underyling
-            :class:`~jsonapi.core.includer.Includer` is asynchronous.
-
         If :attr:`data` contains resources, this method will fetch all related
         resources.
         """

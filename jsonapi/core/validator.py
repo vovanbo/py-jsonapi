@@ -26,22 +26,34 @@
 jsonapi.core.validator
 ======================
 
-A toolkit for building validators for JSON API documents.
+.. seealso::
+
+    *   http://jsonapi.org/format/#document-structure
+    *   http://jsonapi.org/format/#errors
+
+Validating a json:api document before accepting it, is part of a good API.
+You can use this toolkit for checking the existence of fields, their type
+and many other things.
 
 A simple validator for an article could look like this:
 
 .. code-block:: python3
 
     class ArticleValidator(Validator):
-
         id = ID(regex="\d+")
         type = Type(types=["Article"])
 
         title = Attribute(type=str, required=True)
-        author = ToOneRelationship(types=["User"], require_data=True)
+        author = ToOneRelationship(
+            types=["User"], require_data=True
+        )
         comments = ToManyRelationship(
             types=["Comment", "ImageComment"], require_data=True
         )
+
+Now, you can validate different parts of a JSON API resource object:
+
+.. code-block:: python3
 
     val = ArticleValidator()
 
@@ -54,12 +66,12 @@ A simple validator for an article could look like this:
         }
     })
 
-    # FAIL (the *data* member is required)
+    # ERROR (the *data* member is required)
     val.assert_relationship_object("author", {
         "meta": {}
     })
 
-    # FAIL (the *title* must be a string)
+    # ERROR (the *title* must be a string)
     val.assert_attributes_object({
         "title": 10
     })
@@ -71,12 +83,19 @@ validator function
 ------------------
 
 A validator function takes a data parameter *d* and a *source_pointer* as
-arguments and raises an exception, if the data is invalid.
+arguments and raises an exception, if the data is invalid:
 
-.. seealso::
+.. code-block:: python3
 
-    *   http://jsonapi.org/format/#document-structure
-    *   http://jsonapi.org/format/#errors
+    class ArticleValidator(Validator):
+
+        @Attribute(required=True)
+        def title(self, d, source_pointer="/"):
+            if not isinstance(d, str):
+                raise InvalidDocument(source_pointer=source_pointer)
+            if d.isspace():
+                raise InvalidDocument(source_pointer=source_pointer)
+            return None
 """
 
 # std
@@ -90,9 +109,11 @@ from . import validation
 
 
 __all__ = [
+    "ValidatorMethod",
     "ID",
     "Type",
     "Attribute",
+    "Relationship",
     "ToOneRelationship",
     "ToManyRelationship",
     "Meta",
@@ -177,7 +198,7 @@ class ValidatorMethod(object):
 
     def validate(self, validator, d, source_pointer="/"):
         """
-        Validates *d* and if *d* is invalid, a
+        Validates *d* and if *d* is invalid, an
         :exc:`~jsonapi.core.errors.InvalidDocument` exception is raised.
 
         :arg Validator validator:
@@ -234,7 +255,7 @@ class Type(ValidatorMethod):
     Validates the *type* of a resource document.
 
     :arg set types:
-        A set with the names of all allowed types.
+        A set with all allowed typenames.
     :arg callable fvalidate:
         A :ref:`validator_function` for the *type*.
     """
@@ -243,7 +264,7 @@ class Type(ValidatorMethod):
         super().__init__(name="type", required=True, fvalidate=fvalidate)
 
         #: The names of all allowed types. If this set is empty, we don't
-        #: check for the correct type.
+        #: all values are allowed for the name.
         self.types = set()
         if types:
             self.types.update(types)
@@ -272,7 +293,7 @@ class Type(ValidatorMethod):
 
 class Attribute(ValidatorMethod):
     """
-    Validates an attribute value.
+    Validates an attribute member.
 
     :arg str name:
         The name of the attribute
@@ -321,7 +342,8 @@ class Relationship(ValidatorMethod):
         If true, the relationship must be included in the relationships
         object.
     :arg bool require_data:
-        If true, the *data* member of the relationship object is required.
+        If true, the *data* member of the relationship object is required,
+        if the relationship object exists.
     :arg callable fvalidate:
         A :ref:`validator_function` for the *relationship*.
     """
@@ -469,9 +491,7 @@ class ToManyRelationship(Relationship):
 
 class Link(ValidatorMethod):
     """
-    Base validator for relationships.
-
-    :seealso: :class:`ToOneRelationship`, :class:`ToManyRelationship`
+    Validates a member of the links object.
 
     :arg str name:
         The name of the link in the *links object*
@@ -527,7 +547,7 @@ class Link(ValidatorMethod):
 
 class Meta(ValidatorMethod):
     """
-    Validates a member of the resource document's *meta* object.
+    Validates a member of the *meta* object.
 
     :arg str name:
         The name of the *meta* member
@@ -548,7 +568,10 @@ class Validator(object):
     the type of attributes and makes sure all required fields are present.
     """
 
+    #: Generic id validation.
     id = ID(required=False)
+
+    #: Generic type validation.
     type = Type()
 
     def __init__(self):
@@ -725,7 +748,7 @@ class Validator(object):
 
     def assert_type(self, d, source_pointer="/"):
         """
-        Asserts that *d* the correct typename.
+        Asserts that *d* is the correct typename.
 
         :arg d:
         :arg str source_pointer:

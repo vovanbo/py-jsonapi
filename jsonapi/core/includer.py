@@ -26,22 +26,30 @@
 jsonapi.core.includer
 =====================
 
+:seealso: http://jsonapi.org/format/#fetching-includes
+
 The :class:`Includer` helps to implement the JSON API *include* query
 parameter, which lets the server include related resources into the response.
 
 If fully implemented, the includer can also validate include paths and check
-if they exist, before actually start loading resources from the database.
-
-:seealso: http://jsonapi.org/format/#fetching-includes
-
-Example
--------
+if they exist, before the related resources are loaded from the database.
 
 Here is a short example:
 
 .. code-block:: python3
 
     class ArticleIncluder(Includer):
+        resource_class = Article
+
+        author = ToOneRelationship(remote_types=["User"])
+        comments = ToManyRelationship(remote_types=["Comment"])
+
+The example above is equivalent to:
+
+.. code-block:: python3
+
+    class ArticleIncluder(Includer):
+        resource_class = Article
 
         @ToOneRelationship(remote_types=["User"])
         def author(self, article, request):
@@ -51,8 +59,28 @@ Here is a short example:
         def comments(self, article, request):
             return article.comments
 
-The *remote_types* arguments allows the includer to follow and validate include
-paths, before actually performing the include.
+The *remote_types* parameter allows the includer to follow and validate include
+paths, before the inclusion is actually performed.
+
+You can also subclass the includer and overridde some of its methods:
+
+.. code-block:: python3
+
+    class ArticleIncluder(Includer):
+
+        def path_exists(self, path):
+            if super().path_exists(path):
+                return True
+            # ...
+            return False
+
+        def fetch_paths(self, resources, paths, request):
+            relatives = super().fetch_paths(resources, paths, request)
+            # ....
+            return relatives
+
+        def fetch_resources(self, ids, request):
+            pass
 """
 
 # std
@@ -76,8 +104,8 @@ class Relationship(object):
     A special method for the :class:`Includer`, which tells the includer,
     how to get the relatives from a resource.
 
-    This class is only the base :class:`ToOneRelationship` and
-    :class:`ToManyRelationship`.
+    This class is the base :class:`ToOneRelationship` and
+    :class:`ToManyRelationship`, never use it directly.
 
     :arg str name:
         The name of the encoded relationship (the JSON API name of the
