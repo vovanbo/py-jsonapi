@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from flask import g
-import jsonapi.core as jsonapi
+import jsonapi
 from ..models import User, Post
 
 
