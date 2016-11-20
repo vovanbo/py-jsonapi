@@ -262,7 +262,7 @@ class Request(object):
             A fallback value for the filter.
         """
         for item in self.japi_filters:
-            if item[0] == field in item[1] == filtername:
+            if item[0] == field and item[1] == filtername:
                 return item[2]
         return default
 
