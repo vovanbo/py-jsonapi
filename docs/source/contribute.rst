@@ -15,7 +15,7 @@ Bug reports
 When you found a bug, please create a new
 `issue <https://github.com/benediktschmitt/py-jsonapi/issues>`_.
 
-Pull requests are also very welcome :)
+Pull requests are greatly appreciated! :)
 
 
 New adapters
@@ -36,7 +36,6 @@ issue with your question.
 Spelling Mistakes
 -----------------
 
-The people who wrote this library are not native english speakers, so there
-are probably a lot of spelling mistakes and grammer errors in this
-documentation.
-Please report those things too :)
+I'm not a native english speaker, so there are probably a lot of
+spelling mistakes and grammar errors in this documentation.
+Please report them too :)

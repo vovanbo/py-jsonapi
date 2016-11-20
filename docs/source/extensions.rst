@@ -6,27 +6,21 @@ Extensions
 .. note::
 
     If you implemented a new extension and want it to be listed here,
-    tell us about it on GitHub.
+    tell me about it on GitHub.
 
 These extensions currently exist:
 
 
-*   SQLAlchemy
+*   py-jsonapi-sqlalchemy
 
     *   `GitHub <https://github.com/benediktschmitt/py-jsonapi-sqlalchemy/>`__
+    *   `ReadTheDocs <http://py-jsonapi-sqlalchemy.readthedocs.io/>`__
 
 *   mongoengine
 
     *   `GitHub <https://github.com/benediktschmitt/py-jsonapi-mongoengine/>`__
-
-*   motorengine
-
-    *   `GitHub <https://github.com/benediktschmitt/py-jsonapi-motorengine/>`__
+    *   `ReadTheDocs <http://py-jsonapi-mongoengine.readthedocs.io/>`__
 
 *   Flask
 
     *   `GitHub <https://github.com/benediktschmitt/py-jsonapi-flask/>`__
-
-*   Tornado
-
-    *   `GitHub <https://github.com/benediktschmitt/py-jsonapi-tornado/>`__
