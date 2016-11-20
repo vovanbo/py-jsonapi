@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.core.handler
+jsonapi.handler
 ====================
 
 This module contains the base class for all *py-jsonapi* resource handlers.
@@ -32,21 +32,21 @@ The implementation is straight forward::
     class Article(Handler):
 
         def get(self, request):
-            pagination = jsonapi.core.pagination.NumberSize.from_request(
+            pagination = jsonapi.pagination.NumberSize.from_request(
                 request, query(Article).count()
             )
             articles = query(Article)\\
                 .limit(pagination.limit)\\
                 .offset(pagination.offset)\\
                 .all()
-            return jsonapi.core.response_builder.Collection(request, data=articles)
+            return jsonapi.response_builder.Collection(request, data=articles)
 
-The handler receives a :class:`~jsonapi.core.request.Request` instance as
-parameter and returns either a :class:`~jsonapi.core.response.Response`
-or a :class:`~jsonapi.core.response_builder.ResponseBuilder` object.
+The handler receives a :class:`~jsonapi.request.Request` instance as
+parameter and returns either a :class:`~jsonapi.response.Response`
+or a :class:`~jsonapi.response_builder.ResponseBuilder` object.
 
-If a :class:`~jsonapi.core.response_builder.ResponseBuilder` is returned,
-the :meth:`~jsonapi.core.response_builder.IncludeMixin.fetch_include` method
+If a :class:`~jsonapi.response_builder.ResponseBuilder` is returned,
+the :meth:`~jsonapi.response_builder.IncludeMixin.fetch_include` method
 is called automatic.
 """
 
@@ -69,7 +69,7 @@ class Handler(object):
     """
     The interface for a request handler.
 
-    :arg ~jsonapi.core.api.API api:
+    :arg ~jsonapi.api.API api:
         The API, which owns this handler.
     """
 
@@ -81,7 +81,7 @@ class Handler(object):
         """
         Binds the handler to the *api*.
 
-        :arg ~jsonapi.core.api.API:
+        :arg ~jsonapi.api.API:
         """
         assert self.api is None or self.api is api
         self.api = api
@@ -90,13 +90,13 @@ class Handler(object):
     def handle(self, request):
         """
         Calls the correct handler method (*get*, *patch*, ...) depending on HTTP
-        :attr:`~jsonapi.core.request.Request.method`.
+        :attr:`~jsonapi.request.Request.method`.
 
-        :arg ~jsonapi.core.request.Request request:
+        :arg ~jsonapi.request.Request request:
 
         :returns:
-            A :class:`~jsonapi.core.response.Response` or
-            :class:`~jsonapi.core.response_builder.ResponseBuilder`
+            A :class:`~jsonapi.response.Response` or
+            :class:`~jsonapi.response_builder.ResponseBuilder`
         """
         if request.method == "delete":
             return self.delete(request)

@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.core.includer
+jsonapi.includer
 =====================
 
 :seealso: http://jsonapi.org/format/#fetching-includes
@@ -197,7 +197,7 @@ class Includer(object):
     overridde the special methods or you use the :class:`ToOneRelationship`
     and :class:`ToManyRelationship` decorators to implement an includer.
 
-    :arg ~jsonapi.core.api.API api:
+    :arg ~jsonapi.api.API api:
         The API, that owns this includer.
     """
 
@@ -215,7 +215,7 @@ class Includer(object):
         Adds a new includer method to the includer.
 
         :arg str key:
-        :arg ~jsonapi.core.includer.Relationship method:
+        :arg ~jsonapi.includer.Relationship method:
         """
         assert isinstance(method, (ToOneRelationship, ToManyRelationship))
         method.name = method.name or key
@@ -240,7 +240,7 @@ class Includer(object):
     @property
     def api(self):
         """
-        The :class:`~jsonapi.core.api.API`, whichs owns this includer.
+        The :class:`~jsonapi.api.API`, whichs owns this includer.
         """
         return self.__api
 
@@ -248,7 +248,7 @@ class Includer(object):
         """
         Called, when the includer is assigned to an API.
 
-        :arg ~jsonapi.core.api.API api:
+        :arg ~jsonapi.api.API api:
             The owning API
         """
         assert self.__api is None or self.__api is api
@@ -309,7 +309,7 @@ class Includer(object):
             A list of resources
         :arg list paths:
             A list of relationship paths
-        :arg ~jsonapi.core.request.Request request:
+        :arg ~jsonapi.request.Request request:
             The current request context.
         """
         related = set()
@@ -326,7 +326,7 @@ class Includer(object):
             A list of resources
         :arg list path:
             A relationship path
-        :arg ~jsonapi.core.request.Request request:
+        :arg ~jsonapi.request.Request request:
             The current request context.
         """
         name, *path = path
@@ -348,7 +348,7 @@ class Includer(object):
 
         :arg list ids:
             A list of resource ids
-        :arg ~jsonapi.core.request.Request request:
+        :arg ~jsonapi.request.Request request:
             The current request context.
         """
         raise NotImplementedError()

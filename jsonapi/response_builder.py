@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.core.response_builder
+jsonapi.response_builder
 =============================
 
 The response builders make it easier to create common response types (
@@ -55,7 +55,7 @@ class ResponseBuilder(object):
     """
     This class helps building a JSON API response.
 
-    :arg ~jsonapi.core.request.Request request:
+    :arg ~jsonapi.request.Request request:
         The request, to which this object responds
     """
 
@@ -67,7 +67,7 @@ class ResponseBuilder(object):
     @property
     def api(self):
         """
-        The :class:`~jsonapi.core.api.API`, which handles the :attr:`request`.
+        The :class:`~jsonapi.api.API`, which handles the :attr:`request`.
         """
         return self.__api
 
@@ -90,10 +90,10 @@ class ResponseBuilder(object):
 
     def to_response(self, status=200, headers=None):
         """
-        Builds the :class:`~jsonapi.core.response.Response` and sets
+        Builds the :class:`~jsonapi.response.Response` and sets
         the ``application/vnd.api+json`` content type header.
 
-        :rtype: ~jsonapi.core.response.Response
+        :rtype: ~jsonapi.response.Response
         """
         headers = headers or dict()
         headers["content-type"] = "application/vnd.api+json"
@@ -139,7 +139,7 @@ class Collection(ResponseBuilder, IncludeMixin):
     Builds a collection response. The primary :attr:`data` contains a list
     of resources.
 
-    :arg ~jsonapi.core.request.Request request:
+    :arg ~jsonapi.request.Request request:
         The request, to which this object responds
     :arg list data:
         A list of resources of the same type
@@ -150,7 +150,7 @@ class Collection(ResponseBuilder, IncludeMixin):
         The JSON API links object
     :arg dict meta:
         The JSON API meta object
-    :arg ~jsonapi.core.pagination.BasePagination pagination:
+    :arg ~jsonapi.pagination.BasePagination pagination:
         A pagination instance, which describes the pagination of the collection.
     """
 
@@ -193,7 +193,7 @@ class Resource(ResponseBuilder, IncludeMixin):
     """
     Contains a resource or ``None`` as primary :attr:`data`.
 
-    :arg ~jsonapi.core.request.Request request:
+    :arg ~jsonapi.request.Request request:
         The request, to which this object responds
     :arg data:
         A single resource or ``None``.
@@ -257,14 +257,14 @@ class Relationship(ResponseBuilder):
     """
     Builds a JSON API response, which contains a relationship.
 
-    :arg ~jsonapi.core.request.Request request:
+    :arg ~jsonapi.request.Request request:
         The request, to which this object responds
     :arg resource:
         A resource object
     :arg str relname:
         The name of the relationship, which is returned in the response.
         If not given, we will extract the name from the request.
-    :arg ~jsonapi.core.pagination.BasePagination pagination:
+    :arg ~jsonapi.pagination.BasePagination pagination:
         A pagination instance, which describes the pagination of the collection.
         (Only *to-many* relationships should support pagination.)
     """
@@ -303,7 +303,7 @@ class MetaOnly(ResponseBuilder):
     """
     Only responds with top-level :attr:`meta` data.
 
-    :arg ~jsonapi.core.request.Request request:
+    :arg ~jsonapi.request.Request request:
         The request, to which this object responds
     :arg dict meta:
         The JSON API meta object

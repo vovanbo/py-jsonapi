@@ -23,50 +23,32 @@
 # SOFTWARE.
 
 """
-jsonapi.core
-============
-
-The core package of *py-jsonapi* contains the definitions for interfaces and
-powerful, yet simple tools, which help you implementing a robust
-http://jsonapi.org compliant API.
-
-Each module aims to implement only one feature of the json:api specifiction.
-Thus you can use most of them without an actual :class:`~jsonapi.core.api.API`
-instance and pick only the ones you need.
-
-If you prefer a higher level of abstraction, take a look
-:mod:`~jsonapi.schema` pacakge and the various :ref:`extensions`.
-
-.. Remember to add a .rst file for each Python module listed here in the
-.. correct docs folder.
-
-.. toctree::
-    :maxdepth: 2
-
-    api
-    encoder
-    errors
-    handler
-    includer
-    pagination
-    request
-    response
-    response_builder
-    utilities
-    validation
-    validator
+jsonapi.response
+=====================
 """
 
-# local
-from . import api
-from . import encoder
-from . import errors
-from . import handler
-from . import includer
-from . import pagination
-from . import request
-from . import response
-from . import response_builder
-from . import utilities
-from . import validation
-from . import validator
+__all__ = [
+    "Response"
+]
+
+
+class Response(object):
+    """
+    Contains all information needed for a creating a proper http response.
+
+    :arg int status:
+        The http status code
+    :arg dict headers:
+        A dictionary containing all headers of the response.
+    :arg bytes body:
+        The body of the http response as bytes. This attribute may be None.
+    :arg file:
+        If not None, this is a file like object or a filename.
+    """
+
+    def __init__(self, status=200, headers=None, body=None, file=None):
+        self.status = status
+        self.headers = headers or dict()
+        self.body = body
+        self.file = file
+        return None

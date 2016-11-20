@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.core.validator
+jsonapi.validator
 ======================
 
 .. seealso::
@@ -192,20 +192,20 @@ class ValidatorMethod(object):
         :arg d:
         :arg str source_pointer:
 
-        :raises ~jsonapi.core.errors.InvalidDocument:
+        :raises ~jsonapi.errors.InvalidDocument:
         """
         return None
 
     def validate(self, validator, d, source_pointer="/"):
         """
         Validates *d* and if *d* is invalid, an
-        :exc:`~jsonapi.core.errors.InvalidDocument` exception is raised.
+        :exc:`~jsonapi.errors.InvalidDocument` exception is raised.
 
         :arg Validator validator:
         :arg d:
         :arg str source_pointer:
 
-        :raises ~jsonapi.core.errors.InvalidDocument:
+        :raises ~jsonapi.errors.InvalidDocument:
         """
         self.pre_validate(validator, d, source_pointer)
         if self.fvalidate:

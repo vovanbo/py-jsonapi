@@ -23,13 +23,13 @@
 # SOFTWARE.
 
 """
-jsonapi.core.api
-================
+jsonapi.api
+===========
 
-The :class:`~jsonapi.core.api.API` class is the glue, which holds all
-components together. In the simplest case, it works as container for all
-encoders. In a more advanced setup, the api is also responsible for the
-request handling (routing, dispatching, ...).
+The :class:`~jsonapi.api.API` class is the glue, which holds all components
+together. In the simplest case, it works as container for all  encoders. In a
+more advanced setup, the API is also responsible for the request handling
+(routing, dispatching, ...).
 
 By overriding the :meth:`API.handle_request` method, it can be easily integrated
 in other web frameworks.
@@ -51,7 +51,7 @@ except ImportError:
     bson = None
 
 # local
-from .. import version
+from . import version
 from . import errors
 from . import handler
 from . import response_builder
@@ -174,7 +174,7 @@ class API(object):
 
     def get_encoder(self, o, default=ARG_DEFAULT):
         """
-        Returns the :class:`~jsonapi.core.encoder.Encoder` associated with *o*.
+        Returns the :class:`~jsonapi.encoder.Encoder` associated with *o*.
         *o* must be either a typename, a resource class or resource object.
 
         :arg o:
@@ -183,7 +183,7 @@ class API(object):
             Returned if no encoder for *o* is found.
         :raises KeyError:
             If no encoder for *o* is found and no *default* value is given.
-        :rtype: jsonapi.core.encoder.Encoder:
+        :rtype: jsonapi.encoder.Encoder:
         """
         encoder = self._encoder.get(o)\
             or self._resource_class_to_encoder.get(o)\
@@ -196,7 +196,7 @@ class API(object):
 
     def get_includer(self, o, default=ARG_DEFAULT):
         """
-        Returns the :class:`~jsonapi.core.includer.Includer` associated with *o*.
+        Returns the :class:`~jsonapi.includer.Includer` associated with *o*.
         *o* must be either a typename, a resource class or resource object.
 
         :arg o:
@@ -205,7 +205,7 @@ class API(object):
             Returned if no includer for *o* is found.
         :raises KeyError:
             If no includer for *o* is found and no *default* value is given.
-        :rtype: jsonapi.core.includer.Includer:
+        :rtype: jsonapi.includer.Includer:
         """
         includer = self._includer.get(o)\
             or self._resource_class_to_includer.get(o)\
@@ -226,11 +226,11 @@ class API(object):
     def add_type(self, encoder, includer=None):
         """
         Adds an encoder to the API. This method will call
-        :meth:`~jsonapi.core.encoder.Encoder.init_api`, which binds the encoder
+        :meth:`~jsonapi.encoder.Encoder.init_api`, which binds the encoder
         instance to the API.
 
-        :arg ~jsonapi.core.encoder.Encoder encoder:
-        :arg ~jsonapi.core.includer.Includer includer:
+        :arg ~jsonapi.encoder.Encoder encoder:
+        :arg ~jsonapi.includer.Includer includer:
         """
         resource_class = encoder.resource_class
         typename = encoder.typename
@@ -267,9 +267,9 @@ class API(object):
             The final routing mechanisms and URL patterns are still up for
             discussion.
 
-        Adds a new :class:`~jsonapi.core.handler.Handler` to the API.
+        Adds a new :class:`~jsonapi.handler.Handler` to the API.
 
-        :arg ~jsonapi.core.handler.Handler handler:
+        :arg ~jsonapi.handler.Handler handler:
             A request handler
         :arg str typename:
         :arg str endpoint_type:
@@ -407,7 +407,7 @@ class API(object):
 
     def prepare_request(self, request):
         """
-        Called, before the :meth:`~jsonapi.core.handler.Handler.handle`
+        Called, before the :meth:`~jsonapi.handler.Handler.handle`
         method of the request handler is called.
 
         You *can* overridde this method to modify the request. (Add some
@@ -431,10 +431,10 @@ class API(object):
         This method should be overridden for integration in other frameworks.
         It is the **entry point** for all requests handled by this API instance.
 
-        :arg ~jsonapi.core.request.Request request:
+        :arg ~jsonapi.request.Request request:
             The request, which should be handled.
 
-        :rtype: ~jsonapi.core.request.Response
+        :rtype: ~jsonapi.request.Response
         """
         assert request.api is None or request.api is self
         request.api = self
@@ -527,7 +527,7 @@ class API(object):
 
         :arg resource:
             A resource instance, whichs type is known to the API.
-        :arg ~jsonapi.core.request.Request request:
+        :arg ~jsonapi.request.Request request:
             The request context
 
         :rtype: dict

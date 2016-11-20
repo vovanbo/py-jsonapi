@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.core.pagination
+jsonapi.pagination
 =======================
 
 This module contains helper for the pagination feature:
@@ -207,7 +207,7 @@ class LimitOffset(BasePagination):
         Extracts the current pagination values (*limit* and *offset*) from the
         request's query parameters.
 
-        :arg ~jsonapi.core.request.Request request:
+        :arg ~jsonapi.request.Request request:
         :arg int total_resources:
             The total number of resources in the collection.
         :arg int default_limit:
@@ -324,7 +324,7 @@ class NumberSize(BasePagination):
         Extracts the current pagination values (*size* and *number*) from the
         request's query parameters.
 
-        :arg ~jsonapi.core.request.Request request:
+        :arg ~jsonapi.request.Request request:
         :arg int total_resources:
             The total number of resources in the collection.
         :arg int default_size:
@@ -468,7 +468,7 @@ class Cursor(BasePagination):
         Extracts the current pagination values (*limit* and *cursor*) from the
         request's query parameters.
 
-        :arg ~jsonapi.core.request.Request request:
+        :arg ~jsonapi.request.Request request:
         :arg int default_limit:
              If the request’s query string does not contain a limit,
              we will use this one as fallback value.

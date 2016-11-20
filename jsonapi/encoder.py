@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.core.encoder
+jsonapi.encoder
 ====================
 
 This module contains a simple *Encoder* interface for serializing resources into
@@ -113,7 +113,7 @@ that the *to-many* relationship can be paginated::
     @ToManyRelationship()
     def comments(self, article, request, *, require_data=False, pagination=None):
         if pagination is None:
-            pagination = jsonapi.core.pagination.NumberSize(
+            pagination = jsonapi.pagination.NumberSize(
                 uri=request.api.relationship_uri(article, "comments"),
                 number=0,
                 size=25,
@@ -340,7 +340,7 @@ class Encoder(object):
     The base class for a JSON API encoder. The encoder takes a resource
     and creates different JSON API document based on it.
 
-    :arg ~jsonapi.core.api.API api:
+    :arg ~jsonapi.api.API api:
         The API, that owns the encoder.
     """
 
@@ -409,7 +409,7 @@ class Encoder(object):
     @property
     def api(self):
         """
-        The :class:`~jsonapi.core.api.API`, whichs owns this encoder.
+        The :class:`~jsonapi.api.API`, whichs owns this encoder.
         """
         return self.__api
 
@@ -417,7 +417,7 @@ class Encoder(object):
         """
         Called, when the encoder is assigned to an API.
 
-        :arg ~jsonapi.core.api.API api:
+        :arg ~jsonapi.api.API api:
             The API, which owns this encoder.
         """
         assert self.__api is None or self.__api is api
@@ -434,7 +434,7 @@ class Encoder(object):
 
         :arg resource:
             A resource object
-        :arg ~jsonapi.core.request.Request request:
+        :arg ~jsonapi.request.Request request:
             The request context
         :rtype: str
         :returns:
@@ -461,7 +461,7 @@ class Encoder(object):
 
         :arg resource:
             A resource object
-        :arg ~jsonapi.core.request.Request request:
+        :arg ~jsonapi.request.Request request:
             The request context
 
         :rtype: dict
@@ -512,11 +512,11 @@ class Encoder(object):
 
         Creates the JSON:API attributes object of the given resource, with
         respect to
-        :attr:`request.japi_fields <jsonapi.core.request.Request.japi_fields>`.
+        :attr:`request.japi_fields <jsonapi.request.Request.japi_fields>`.
 
         :arg resource:
             A resource object
-        :arg ~jsonapi.core.request.Request request:
+        :arg ~jsonapi.request.Request request:
             The request context
 
         :rtype: dict
@@ -538,11 +538,11 @@ class Encoder(object):
             http://jsonapi.org/format/#document-resource-object-relationships
 
         Creates the JSON API relationships object, with respect to
-        :attr:`request.japi_fields <jsonapi.core.request.Request.japi_fields>`.
+        :attr:`request.japi_fields <jsonapi.request.Request.japi_fields>`.
 
         :arg resource:
             A resource object
-        :arg ~jsonapi.core.request.Request request:
+        :arg ~jsonapi.request.Request request:
             The request context
         :arg list require_data:
             A list with the names of all relationships, for which the resource
@@ -577,11 +577,11 @@ class Encoder(object):
             The name of the relationship
         :arg resource:
             A resource object
-        :arg ~jsonapi.core.request.Request request:
+        :arg ~jsonapi.request.Request request:
             The request context
         :arg bool require_data:
             If true, the relationship object must contain a *data* member.
-        :arg ~jsonapi.core.pagination.BasePagination pagination:
+        :arg ~jsonapi.pagination.BasePagination pagination:
             An object describing the pagination of the relationship. The
             pagination is only used for *to-many* relationships.
 
@@ -609,7 +609,7 @@ class Encoder(object):
 
         :arg resource:
             A resource object
-        :arg ~jsonapi.core.request.Request request:
+        :arg ~jsonapi.request.Request request:
             The request context
 
         :rtype: dict
@@ -630,7 +630,7 @@ class Encoder(object):
 
         :arg resource:
             A resource object
-        :arg ~jsonapi.core.request.Request request:
+        :arg ~jsonapi.request.Request request:
             The request context
 
         :rtype: dict

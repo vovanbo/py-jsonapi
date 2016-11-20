@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 """
-jsonapi.core.utilities
+jsonapi.utilities
 ======================
 
 This module contains some helpers, which are frequently needed in different
@@ -160,12 +160,12 @@ def rebase_include(new_root, include):
 
 def fetch_resources(ids, request):
     """
-    Loads many resources using the :class:`~jsonapi.core.includer.Includer`
+    Loads many resources using the :class:`~jsonapi.includer.Includer`
     instances. The ids of in *ids* may have different typenames.
 
     :arg list ids:
         A list of identifiers tuples.
-    :arg ~jsonapi.core.request.Request request:
+    :arg ~jsonapi.request.Request request:
         The current request context
 
     :rtype: dict
@@ -194,7 +194,7 @@ def fetch_resource(id_, request):
 
     :arg list id_:
         An identifier (object or tuple).
-    :arg ~jsonapi.core.request.Request request:
+    :arg ~jsonapi.request.Request request:
         The current request context
 
     :rtype: dict
@@ -238,7 +238,7 @@ def load_relationships_object(d, request):
 
     :arg dict d:
         A JSON API relationships object
-    :arg ~jsonapi.core.request.Request request:
+    :arg ~jsonapi.request.Request request:
         The current request context
 
     :rtype: dict
@@ -285,7 +285,7 @@ def load_relationship_object(d, request):
 
     :arg dict d:
         A JSON API relationship object
-    :arg ~jsonapi.core.request.Request request:
+    :arg ~jsonapi.request.Request request:
         The current request context
     """
     api = request.api
