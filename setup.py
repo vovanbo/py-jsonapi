@@ -41,7 +41,7 @@ except OSError:
 
 setup(
     name = "py-jsonapi",
-    version = jsonapi.version,
+    version = jsonapi.version.version,
     description = "A toolkit for building a JSON API (http://jsonapi.org)",
     long_description = long_description,
     author = "Benedikt Schmitt",
