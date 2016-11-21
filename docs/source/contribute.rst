@@ -37,5 +37,6 @@ Spelling Mistakes
 -----------------
 
 I'm not a native english speaker, so there are probably a lot of
-spelling mistakes and grammar errors in this documentation.
+spelling mistakes and grammar errors in this documentation and the
+source code.
 Please report them too :)

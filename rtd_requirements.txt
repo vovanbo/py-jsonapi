@@ -1,4 +1,5 @@
 # This requirements file is only used by readthedocs.org
 cached_property
-sqlalchemy
-flask
+mongoengine
+SQLAlchemy
+Flask

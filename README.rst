@@ -27,6 +27,9 @@ Changelog
 This library has been redesigned in *1.0.0b0*. Please take a look at the
 `Changelog <./CHANGELOG.rst>`_ to find out more about the intensions.
 
+You can find the *old* version (0.3.2b0) here
+https://github.com/benediktschmitt/py-jsonapi/releases/tag/0.3.2b0.
+
 
 License
 -------

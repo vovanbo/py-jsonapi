@@ -41,16 +41,14 @@ except OSError:
 
 setup(
     name = "py-jsonapi",
-    version = jsonapi.version.version,
-    description = "A toolkit for building a JSON API",
+    version = jsonapi.version,
+    description = "A toolkit for building a JSON API (http://jsonapi.org)",
     long_description = long_description,
     author = "Benedikt Schmitt",
     url = "https://github.com/benediktschmitt/py-jsonapi",
     download_url = "https://github.com/benediktschmitt/py-jsonapi/archive/master.zip",
     packages = [
-        "jsonapi",
-        "jsonapi.base",
-        "jsonapi.asyncio",
+        "jsonapi"
     ],
     license = license_,
     install_requires = [

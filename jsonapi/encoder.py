@@ -24,7 +24,7 @@
 
 """
 jsonapi.encoder
-====================
+===============
 
 This module contains a simple *Encoder* interface for serializing resources into
 a JSON API document.
@@ -50,19 +50,23 @@ to define an encoder very **easily** in a few lines of code::
 attributes
 ----------
 
+.. seealso::
+
+    http://jsonapi.org/format/#document-resource-object-attributes
+
 The easiest way of encoding attributes is this one::
 
     title = Attribute()
 
 The encoder will loook for an attribute ``article.title`` and add it to the
-json:api *attributes* object.
+JSON API *attributes* object.
 
-The json:api field name of an attribute can be changed with the *name*
+The JSON API name of the attribute field can be changed with the *name*
 parameter::
 
     title = Attribute(name="TiTlE")
 
-If you want more control about the serialization, you can implement a *getter*
+If you need more control about the serialization, you can implement a *getter*
 for the attribute::
 
     @Attribute()
@@ -72,6 +76,10 @@ for the attribute::
 relationships
 -------------
 
+.. seealso::
+
+    http://jsonapi.org/format/#document-resource-object-relationships
+
 to-one
 ^^^^^^
 
@@ -80,7 +88,7 @@ Defining relationships is as easy as defining attributes::
     author = ToOneRelationship()
 
 The encoder will now look for an attribute ``article.author``, which must be
-``None`` or point to related resource. (We need the actual resource object in
+``None`` or point to *related resource*. (We need the actual resource object in
 this case and not only an identifier!)
 
 And again, you can customize the serialization::
@@ -126,6 +134,10 @@ that the *to-many* relationship can be paginated::
 links
 -----
 
+.. seealso::
+
+    http://jsonapi.org/format/#document-links
+
 Defining links is similar to defining attributes::
 
     image_sprite = Link()
@@ -149,6 +161,10 @@ You can also compute the link here::
 meta
 ----
 
+.. seealso::
+
+    http://jsonapi.org/format/#document-meta
+
 Meta information can be included with the :class:`Meta` descriptor::
 
     cached_since = Meta()
@@ -164,8 +180,12 @@ or::
 import logging
 import types
 
+# local
+from .utilities import Symbol
+
 
 __all__ = [
+    "Omit",
     "EncoderMethod",
     "Attribute",
     "Relationship",
@@ -180,11 +200,17 @@ __all__ = [
 LOG = logging.getLogger(__file__)
 
 
+#: Can be returned from an :class:`EncoderMethod` to indicate, that a field
+#: is not available or should not be included in the final resource object.
+#:
+#: TODO: Support this symbol in the encoder class.
+Omit = Symbol("Omit")
+
+
 class EncoderMethod(object):
     """
     A method/attribute, which contains information how an attribute,
-    relationship, meta or link should be serialized. An EncoderMethod
-    is always defined on the class level.
+    relationship, meta or link should be serialized.
 
     :arg str name:
         The name of the encoded object in the JSON API document.
@@ -205,7 +231,7 @@ class EncoderMethod(object):
         if fencode:
             self.encoder(fencode)
 
-        #: The name of the encoder method.
+        #: The name of this encoder method.
         self.key = None
         return None
 
@@ -213,6 +239,9 @@ class EncoderMethod(object):
         return self.encoder(fencode)
 
     def encoder(self, fencode):
+        """
+        Descriptor for :attr:`fencode`.
+        """
         self.fencode = fencode
         self.name = self.name or fencode.__name__
         return self
@@ -270,12 +299,14 @@ class ToOneRelationship(Relationship):
         d = fencode(encoder, resource, request, require_data=require_data)
 
         # If *d* is only a resource, we need to wrap it in a proper
-        # JSONAPI relationship object.
+        # JSON API relationship object.
         if (not isinstance(d, dict)) or d is None:
             d = dict(
                 data=encoder.api.ensure_identifier_object(d),
                 links=self.links(encoder, resource)
             )
+
+        # TODO: Update *d* with the links.
         return d
 
     def default_encode(self, encoder, resource, request, *, require_data=False):
@@ -300,6 +331,8 @@ class ToManyRelationship(Relationship):
                 data=[encoder.api.ensure_identifier_object(item) for item in d],
                 links=self.links(encoder, resource)
             )
+
+        # TODO: Update *d* with the links.
         return d
 
     def default_encode(
@@ -415,7 +448,8 @@ class Encoder(object):
 
     def init_api(self, api):
         """
-        Called, when the encoder is assigned to an API.
+        Called, when the encoder is added to an API. This method can be called
+        at most once.
 
         :arg ~jsonapi.api.API api:
             The API, which owns this encoder.
@@ -510,7 +544,7 @@ class Encoder(object):
             *   http://jsonapi.org/format/#document-resource-object-attributes
             *   http://jsonapi.org/format/#fetching-sparse-fieldsets
 
-        Creates the JSON:API attributes object of the given resource, with
+        Creates the JSON API attributes object of the given resource, with
         respect to
         :attr:`request.japi_fields <jsonapi.request.Request.japi_fields>`.
 

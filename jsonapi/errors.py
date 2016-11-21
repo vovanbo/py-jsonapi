@@ -24,7 +24,7 @@
 
 """
 jsonapi.errors
-===================
+==============
 
 This module implements the base class for all JSON API exceptions:
 http://jsonapi.org/format/#errors.
@@ -32,20 +32,6 @@ http://jsonapi.org/format/#errors.
 We also define frequently used HTTP errors and exceptions, which are
 often used in *py-jsonapi*, like :exc:`ReadOnlyField` or
 :exc:`ResourceNotFound`.
-
-.. todo::
-
-    JSON API allows to set a *source_pointer* in an error, which points
-    to the data, which caused the error. We don't use this feature at the
-    moment, because it is hard to track, where the used data came from
-    and if it is even part of the request.
-
-    We could subclass the JSON data types (int, str, dict, list, float, ...)
-    and give them an additional *source_pointer* attribute by overriding
-    the *json* serializers object hook.
-
-    Or we could work with the json pointers all the time:
-    https://github.com/stefankoegl/python-json-pointer
 """
 
 # std
@@ -182,8 +168,7 @@ class Error(Exception):
 class ErrorList(Exception):
     """
     Can be used to store a list of exceptions, which occur during the
-    execution of an api request. All exceptions are then sent back to the
-    client.
+    execution of a request.
 
     :seealso: http://jsonapi.org/format/#error-objects
     :seealso: http://jsonapi.org/examples/#error-objects-multiple-errors
@@ -465,8 +450,10 @@ class InvalidDocument(BadRequest):
     Please note, that this does not include semantic errors, like an unknown
     typename.
 
+    This type of exception is used often in the :mod:`jsonapi.validator`
+    and :mod:`jsonapi.validation` modules.
+
     :seealso: http://jsonapi.org/format/#document-structure
-    :seealso: :mod:`jsonapi.validation`
     """
 
 

@@ -24,7 +24,7 @@
 
 """
 jsonapi.includer
-=====================
+================
 
 :seealso: http://jsonapi.org/format/#fetching-includes
 
@@ -61,6 +61,9 @@ The example above is equivalent to:
 
 The *remote_types* parameter allows the includer to follow and validate include
 paths, before the inclusion is actually performed.
+
+The includer methods must return the actual related resources and not only
+their ids.
 
 You can also subclass the includer and overridde some of its methods:
 
@@ -171,7 +174,7 @@ class Relationship(object):
 
 class ToOneRelationship(Relationship):
     """
-    Describes, how to get the relative in a *to-one* relationship.
+    Returns the related resource or ``None`` in a *to-one* relationship.
     """
 
     #:
@@ -182,7 +185,7 @@ class ToOneRelationship(Relationship):
 
 class ToManyRelationship(Relationship):
     """
-    The getter returns a list of resources.
+    Returns the list of related resources.
     """
 
     #:
@@ -344,7 +347,9 @@ class Includer(object):
 
     def fetch_resources(self, ids, request):
         """
-        **Must be overridden,** if you want to work with the *Schema* extension.
+        **Must be overridden**
+
+        Returns all resources with the given ids.`
 
         :arg list ids:
             A list of resource ids

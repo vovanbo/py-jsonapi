@@ -30,8 +30,8 @@ jsonapi.version
 #: The current version of this library
 version = "1.0.0b0"
 
-#: The supported JSON:API version number
+#: The supported JSON API version number
 jsonapi_version = "1.0.0"
 
-#: The supported JSON:API extensions.
+#: The supported JSON API extensions.
 jsonapi_extensions = []

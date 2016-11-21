@@ -1,7 +1,7 @@
 README
 ======
 
-This example is a simple blog with onyl two models:
+This example is a simple blog with only two models:
 
 *   User
 *   Post

@@ -24,7 +24,7 @@
 
 """
 jsonapi.utilities
-======================
+=================
 
 This module contains some helpers, which are frequently needed in different
 modules and situations.
@@ -106,6 +106,8 @@ def collect_identifiers(d, with_data=True, with_meta=False):
     :rtype: set
     :returns:
         A set with all found identifier tuples.
+
+    .. todo:: Returned named tuples.
     """
     ids = set()
     docs = [d]
@@ -161,7 +163,7 @@ def rebase_include(new_root, include):
 def fetch_resources(ids, request):
     """
     Loads many resources using the :class:`~jsonapi.includer.Includer`
-    instances. The ids of in *ids* may have different typenames.
+    instances. The ids in *ids* may have different typenames.
 
     :arg list ids:
         A list of identifiers tuples.
@@ -195,7 +197,7 @@ def fetch_resource(id_, request):
     :arg list id_:
         An identifier (object or tuple).
     :arg ~jsonapi.request.Request request:
-        The current request context
+        The current request
 
     :rtype: dict
     :returns:
@@ -239,7 +241,7 @@ def load_relationships_object(d, request):
     :arg dict d:
         A JSON API relationships object
     :arg ~jsonapi.request.Request request:
-        The current request context
+        The current request
 
     :rtype: dict
     :returns:
@@ -278,7 +280,7 @@ def load_relationships_object(d, request):
 
 def load_relationship_object(d, request):
     """
-    Loads the relatives in the relationship object *d*. And returns it.
+    Loads the relatives in the JSON API relationship object *d*. And returns it.
     In case of a *to-one* relationship, *None* or the resource object is
     returned. In case of a *to-many* relationship, a list with all resoruces
     is returned.
@@ -286,7 +288,7 @@ def load_relationship_object(d, request):
     :arg dict d:
         A JSON API relationship object
     :arg ~jsonapi.request.Request request:
-        The current request context
+        The current request
     """
     api = request.api
 

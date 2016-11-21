@@ -24,10 +24,10 @@
 
 """
 jsonapi.request
-====================
+===============
 
 This module contains a class for representing HTTP requests. It helps to get
-and parse the various query arguments, which are defined in the JSON:API
+and parse the various query arguments, which are defined in the JSON API
 specification.
 """
 
@@ -40,7 +40,7 @@ import urllib.parse
 from cached_property import cached_property
 
 # local
-from .errors import BadRequest
+from .errors import BadRequest, UnsupportedMediaType
 
 
 LOG = logging.getLogger(__file__)
@@ -99,7 +99,7 @@ class Request(object):
         #: :meth:`~jsonapi.api.API.handle_request` method.
         self.japi_uri_arguments = dict()
 
-        #: A simple dictionary, which you can use to store stuff associated
+        #: You can use this dictionary to store store stuff associated
         #: with this request. For example: The database session or the
         #: the current user/client.
         self.settings = settings or dict()
@@ -154,6 +154,17 @@ class Request(object):
         type_, *parameters = content_type.split(";")
         return (type_, dict())
 
+    def assert_jsonapi_content(self):
+        """
+        Raises a :exc:`~jsonapi.error.UnsupportedMediaType` exception,
+        if the content type is not ``application/vnd.api+json``.
+        """
+        if self.headers.get("content-type", "") != "application/vnd.api+json":
+            raise UnsupportedMediaType(
+                details="The content-type must be 'application/vnd.api+json'."
+            )
+        return None
+
     @cached_property
     def japi_filters(self):
         """
@@ -168,12 +179,7 @@ class Request(object):
 
             (fieldname, filtername, rule)
 
-        The *fieldname* is the name of the field, the filter is applied to, e.g.
-        *name*. The *filtername* is the name of the filter, which should be
-        applied, e.g. *startswith* and *rule* is an object, which describes
-        how it should be filtered, e.g. *Homer S*.
-
-        For example::
+        This tuples describes on which field a filter is applied. For example::
 
             ("name", "startswith", "Homer")
             ("age", "gt", 25)
@@ -183,19 +189,21 @@ class Request(object):
 
             >>> # /api/User/?filter[name]=endswith:'Simpson'
             >>> request.japi_filters
-            ... [("name", "endswith", "Simpson")]
+            [("name", "endswith", "Simpson")]
 
             >>> # /api/User/?filter[name]=in:['Homer Simpson', 'Darth Vader']
             >>> request.japi_filters
-            ... [("name", "in", ["Homer Simpson", "Darth Vader"])]
+            [("name", "in", ["Homer Simpson", "Darth Vader"])]
 
             >>> # /api/User/?filter[email]=startswith:'lisa'&filter[age]=lt:20
             >>> request.japi_filters
-            ... [("email", "startswith", "lisa"), ("age", "lt", 20)]
+            [("email", "startswith", "lisa"), ("age", "lt", 20)]
 
         The general syntax is::
 
             "?filter[fieldname]=filtername:rule"
+
+        where *rule* is a JSON value.
 
         :raises BadRequest:
             If the rule of a filter is not a JSON object.
@@ -238,13 +246,11 @@ class Request(object):
 
     def has_filter(self, field, filtername):
         """
+        Returns true, if the filter *filtername* has been applied at least once
+        on the *field*.
+
         :arg str field:
         :arg str filtername:
-
-        :rtype: bool
-        :returns:
-            True, if at least one filter of the given type has been applied on
-            the *field*.
         """
         return any(
             field == item[0] and filtername == item[1]\
@@ -341,6 +347,24 @@ class Request(object):
 
             sort.append((direction, field))
         return sort
+
+    def get_order(self, field, default="+"):
+        """
+        Checks if a sort criterion (``+`` or ``-``) for the *field* exists
+        and returns it.
+
+        :arg str field:
+        :arg default:
+            Returned, if no criterion is set by the request.
+        """
+        if isinstance(field, str):
+            field = field.split(".")
+            
+        for direction, field_ in self.japi_sort:
+            print(field_, field)
+            if field_ == field:
+                return direction
+        return default
 
     @cached_property
     def json(self):

@@ -9,7 +9,7 @@ from model import Employee
 
 def create_app():
     """
-    Factory method for the main flask application.
+    Factory function for the main flask application.
     """
     app = flask.Flask(__name__)
 
@@ -20,7 +20,7 @@ def create_app():
 
 if __name__ == "__main__":
     mongoengine.connect()
-    Employee.drop_collection()
+    #Employee.drop_collection()
 
     app = create_app()
     app.run(debug=True)

@@ -40,14 +40,14 @@ name of the employee and one to store a reference to the chief:
 
 We put everything related to the API in the :file:`api.py` module.
 
-It's a good idea to create an own *API folder* for larger applications and
-create an own module for each collection.
+It's a good idea to create a dedicated *API folder* for larger applications and
+to write one module for each collection.
 
 Encoder
 ^^^^^^^
 
-We start by defining an encoder, which tells *py-jsonapi* how to serialize
-an instance of *Employee* into a JSON:API document:
+We start by defining an encoder. An encoder tells *py-jsonapi* how to serialize
+an instance of *Employee* into a JSON API document:
 
 .. literalinclude:: ../../../examples/employee/api.py
     :pyobject: EmployeeEncoder
@@ -58,7 +58,7 @@ You can read more about this in the :mod:`jsonapi.encoder` module.
 Includer
 ^^^^^^^^
 
-JSON:API supports the inclusion of related resources and so does *py-jsonapi*.
+JSON API supports the inclusion of related resources and so does *py-jsonapi*.
 By defining an *Includer*, we tell *py-jsonapi* how to load relationship
 paths:
 
@@ -74,7 +74,7 @@ You can read more about the includer in the :mod:`jsonapi.includer` module.
 Validation
 ^^^^^^^^^^
 
-When you receive JSON:API documents from a client, you need to validate them
+When you receive JSON API documents from a client, you need to validate them
 like every other input you receive via HTTP. *py-jsonapi* offers you two modules
 for validation: The generic :mod:`jsonapi.validation` module and the
 :mod:`jsonapi.validator` toolbox.
@@ -105,12 +105,13 @@ Collection Handler
     *   http://jsonapi.org/format/#fetching-resources
     *   http://jsonapi.org/format/#crud-creating
 
-JSON:API defines four different endpoint types: *collection*, *resource*,
+JSON API defines four different endpoint types: *collection*, *resource*,
 *relationship* and *related*.
 
 We start by implementing the collection endpoint for our employees. This
 endpoint supports the *GET* and *POST* HTTP methods. The collection can be
-paginated and filtered by the names of the employees:
+filtered and sorted by the names the employees. Furthermore, it is
+paginated.
 
 .. literalinclude:: ../../../examples/employee/api.py
     :pyobject: EmployeeCollection
@@ -179,8 +180,10 @@ Finally, we create the *Flask* application and :file:`app.py` file.
 .. literalinclude:: ../../../examples/employee/app.py
 
 We use the *py-jsonapi-flask* extension, which embedds the API into a
-*Flask* application. In the *__main__* section, we connect to the database
-and start the integrated web server.
+*Flask* application.
+
+When the script is executed, we connect to the database and start the
+integrated web server.
 
 Play With It
 ------------

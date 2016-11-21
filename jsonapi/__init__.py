@@ -29,7 +29,7 @@ jsonapi
 *py-jsonapi* can be used as toolbox or complete framework for creating a
 http://jsonapi.org compliant API.
 
-Each module aims to implement only one feature of the json:api specifiction.
+Each module aims to implement only one feature of the JSON API specifiction.
 Thus you can use most of them without an actual :class:`~jsonapi.api.API`
 instance and pick only the ones you need.
 

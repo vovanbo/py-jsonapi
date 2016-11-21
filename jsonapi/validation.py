@@ -24,7 +24,7 @@
 
 """
 jsonapi.validation
-=======================
+==================
 
 This module contains *generic* validation functions for all JSON API document
 types. All validators will throw an :exc:`~jsonapi.errors.InvalidDocument`
@@ -34,8 +34,7 @@ All validators only assert the correct document structure, e.g.: An identifier
 object must contain an *id* and a *type* attribute. However, the validator
 does not check, if the type exists.
 
-If you want more precise validators, check out the :mod:`jsonapi.validator`
-module, which helps you building advanced validators.
+If you want more precise validators, check out the :mod:`jsonapi.validator`.
 
 .. seealso::
 
@@ -89,7 +88,7 @@ def assert_data_is_resource_object(d, source_pointer="/"):
 
 def assert_resource_object(d, source_pointer="/"):
     """
-    Asserts, that *d* is a JSONapi resource object.
+    Asserts, that *d* is a JSON API resource object.
 
     :seealso: http://jsonapi.org/format/#document-resource-objects
 
@@ -151,7 +150,7 @@ def assert_resource_object(d, source_pointer="/"):
 
 def assert_attributes_object(d, source_pointer="/"):
     """
-    Asserts, that *d* is a JSONapi attributes object.
+    Asserts, that *d* is a JSON API attributes object.
 
     :seealso: http://jsonapi.org/format/#document-resource-object-attributes
 
@@ -170,7 +169,7 @@ def assert_attributes_object(d, source_pointer="/"):
 
 def assert_relationships_object(d, source_pointer="/"):
     """
-    Asserts, that *d* is a JSONapi relationships object.
+    Asserts, that *d* is a JSON API relationships object.
 
     :seealso: http://jsonapi.org/format/#document-resource-object-relationships
 
@@ -318,7 +317,7 @@ def assert_resource_identifier_object(d, source_pointer="/"):
 
 def assert_links_object(d, source_pointer="/"):
     """
-    Asserts, that *d* is a JSONapi links object.
+    Asserts, that *d* is a JSON API links object.
 
     :seealso: http://jsonapi.org/format/#document-links
 
@@ -340,7 +339,7 @@ def assert_links_object(d, source_pointer="/"):
 
 def assert_link_object(d, source_pointer="/"):
     """
-    Asserts, that *d* is a JSONapi link object.
+    Asserts, that *d* is a JSON API link object.
 
     :seealso: http://jsonapi.org/format/#document-links
 

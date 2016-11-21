@@ -24,16 +24,16 @@
 
 """
 jsonapi.validator
-======================
+=================
 
 .. seealso::
 
     *   http://jsonapi.org/format/#document-structure
     *   http://jsonapi.org/format/#errors
 
-Validating a json:api document before accepting it, is part of a good API.
-You can use this toolkit for checking the existence of fields, their type
-and many other things.
+Validating a JSON API document before accepting it, is an essential step
+during the request handling. You can use this toolkit for checking the existence
+of fields, their type and many other things.
 
 A simple validator for an article could look like this:
 
@@ -79,11 +79,11 @@ Now, you can validate different parts of a JSON API resource object:
 
 .. _validator_function:
 
-validator function
+Validator Function
 ------------------
 
-A validator function takes a data parameter *d* and a *source_pointer* as
-arguments and raises an exception, if the data is invalid:
+A validator function takes a data parameter *d* and a *source_pointer* parameter
+raises an exception, if the data is invalid:
 
 .. code-block:: python3
 
@@ -96,6 +96,189 @@ arguments and raises an exception, if the data is invalid:
             if d.isspace():
                 raise InvalidDocument(source_pointer=source_pointer)
             return None
+
+ID
+--
+
+The *id* member in a JSON API resource object can be validated with the
+:class:`ID` validator::
+
+    id = ID(regex="\d+", required=True)
+
+The above validator requires the existence of the *id* member and ensures,
+that the id string is a number::
+
+    # OK
+    validator.assert_resource_object({
+        "id": "12",
+    })
+
+    # Error: The id is missing.
+    validator.assert_resource_object({
+    })
+
+    # Error: The id is not a integer.
+    validator.assert_resource_object({
+        "id": "abc123"
+    })
+
+You can customize the id validator even more by defining a
+:ref:`validator_function`::
+
+    @ID(regex="\d+", required=True)
+    def id(self, d, source_pointer="/"):
+        if int(d) < 100:
+            raise InvalidDocument(
+                details="The id must be larger than 100 for reasons ...",
+                source_pointer=source_pointer
+            )
+        return None
+
+Type
+----
+
+The *type* member in a JSON API resource object can be validated with the
+:class:`Type` validator::
+
+    type = Type(types=["Article"])
+
+The parameter *types* is a list of allowed types::
+
+    # OK
+    validator.assert_resource_object({
+        "id": "12",
+        "type": "Article"
+    })
+
+    # Error: The *type* is not *Article*.
+    validator.assert_resource_object({
+        "id": "12"
+        "type": "Post"
+    })
+
+You can also define a :ref:`validator_function`::
+
+    @Type()
+    def type(self, d, source_pointer="/"):
+        if d not in ("File", "VideoFile", "MusicFile"):
+            raise InvalidDocument(
+                details="The type must be 'File', 'VideoFile' or 'MusicFile.'",
+                source_pointer=source_pointer
+            )
+        return None
+
+Attributes
+----------
+
+Members of the JSON API attributes object can be validated with an
+:class:`Attribute` validator::
+
+    title = Attribute(type=str, required=True)
+
+The above validator requires the presence of the attribute *title*, which must
+be a string. If the JSON API field name is not a valid Python name, you can
+use the *name* parameter::
+
+    title = Attribute(type=str, required=True, name="ti tle")
+
+You can extend the validation process by defining a validation method::
+
+    @Attribute(type=str, required=True)
+    def title(self, d, source_pointer="/"):
+        if not d.strip():
+            raise InvalidDocument(
+                details="The title must contain at least one non whitespace character.",
+                source_pointer=source_pointer
+            )
+        return None
+
+ToOneRelationship
+-----------------
+
+Members of the JSON API relationships object can be validated with a
+:class:`ToOneRelationship` or :class:`ToManyRelationship` validator::
+
+    author = ToOneRelationship(types=["User"], require_data=True, required=True)
+
+The above validator requires the presence of the relationship *author* in the
+JSON API relationship object and also the *data* member of the *author*
+relationship object::
+
+    # OK
+    validator.assert_relationships_object({
+        "author": {
+            "data": None
+        }
+    })
+
+    # OK
+    validator.assert_relationships_object({
+        "author": {
+            "data": {"type": "User", "id": "42"}
+        }
+    })
+
+    # Error: The *data* member is not present.
+    validator.assert_relationships_object({
+        "author": {
+            "meta": {}
+        }
+    })
+
+    # Error: The remote type is not *User*.
+    validator.assert_relationships_object({
+        "author": {
+            "data": {"type": "Comment", "id": "42"}
+        }
+    })
+
+If the JSON API name is not a valid Python name, you can use the *name*
+parameter to tell the validator the correct name of the JSON API field.
+
+You can extend the validation by defining your own validation method::
+
+    @ToOneRelationship(types=["User"], required=True, require_data=True)
+    def author(self, d, source_pointer="/"):
+        if not "meta" in d:
+            raise InvalidDocument(source_pointer=source_pointer)
+        if not "key" in d["meta"]:
+            raise InvalidDocument(source_pointer=source_pointer)
+        return None
+
+ToManyRelationship
+------------------
+
+Creating a validator for a *to-many* relationship can be done with the
+:class:`ToManyRelationship` validator instead of :class:`ToOneRelationship`.
+
+Link
+----
+
+Members of the JSON API links object can be validated with the
+:class:`Link` validators.
+
+A JSON API link object can be either a string or an object, which contains
+a *meta* and *href* member::
+
+    @Link(assert_string=True)
+    def github_repo(self, d, source_pointer="/"):
+        if not d.startswith("https://github.com"):
+            raise InvalidDocument()
+        return None
+
+Meta
+----
+
+Members of the JSON API meta object can be validated with the
+:class:`Meta` validator::
+
+    imdb_linkage = Meta(required=True)
+
+    @Meta(required=True)
+    def allow_cache(self, d, source_pointer="/"):
+        if not isinstance(d, bool):
+            raise InvalidDocument()
+        return None
 """
 
 # std
@@ -145,8 +328,7 @@ class ValidatorMethod(object):
         #:
         self.name = name
 
-        #: The method name on the Encoder class, on which this validator method
-        #: has been defined.
+        #: The method's name on the Encoder
         self.key = None
 
         #: If true, the field must be included in the JSON API document.
@@ -263,8 +445,8 @@ class Type(ValidatorMethod):
     def __init__(self, *, types=None, fvalidate=None):
         super().__init__(name="type", required=True, fvalidate=fvalidate)
 
-        #: The names of all allowed types. If this set is empty, we don't
-        #: all values are allowed for the name.
+        #: The names of all allowed types. If this set is empty,
+        #: there  are no restrictions on the types.
         self.types = set()
         if types:
             self.types.update(types)

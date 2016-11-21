@@ -86,7 +86,7 @@ class API(object):
         """
         """
         # True, if in debug mode.
-        # Please note, that we never access the *_debug* attribute,
+        # Please note, that we never access the *_debug* attribute direct,
         # only the *debug* property.
         self._debug = debug
 
@@ -134,7 +134,7 @@ class API(object):
         When *debug* is *True*, the api is more verbose and exceptions are
         not catched.
 
-        This property *can be overridden* in subclasses to mimic the settings
+        This property *can be overridden* in subclasses to mimic the behaviour
         of the parent framework.
         """
         return self._debug
@@ -272,6 +272,8 @@ class API(object):
         :arg ~jsonapi.handler.Handler handler:
             A request handler
         :arg str typename:
+            The name of the JSON API type, which can be manipulated/accessed
+            by this handler.
         :arg str endpoint_type:
             ``"collection"``, ``"resource"``, ``"relationship"``
             or ``"related"``
@@ -408,7 +410,7 @@ class API(object):
     def prepare_request(self, request):
         """
         Called, before the :meth:`~jsonapi.handler.Handler.handle`
-        method of the request handler is called.
+        method of the request handler.
 
         You *can* overridde this method to modify the request. (Add some
         settings, headers, a database connection...).

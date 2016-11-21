@@ -24,7 +24,7 @@
 
 """
 jsonapi.response_builder
-=============================
+========================
 
 The response builders make it easier to create common response types (
 collection, resource, new resource, relationship, ...).
@@ -74,7 +74,7 @@ class ResponseBuilder(object):
     @property
     def request(self):
         """
-        The request context
+        The current request
         """
         return self.__request
 
@@ -140,9 +140,9 @@ class Collection(ResponseBuilder, IncludeMixin):
     of resources.
 
     :arg ~jsonapi.request.Request request:
-        The request, to which this object responds
+        The current request
     :arg list data:
-        A list of resources of the same type
+        A list of resources from the same type
     :arg list included:
         A list of all related resources, which should be included into the
         response.
@@ -163,11 +163,21 @@ class Collection(ResponseBuilder, IncludeMixin):
         ResponseBuilder.__init__(self, request=request)
         IncludeMixin.__init__(self, included=included)
 
+        #: A list of resources from the same type.
         self.data = data or list()
+
+        #: A list of all related resources, which should be included into the
+        #: response.
+        #: :seealso: :attr:`~jsonapi.request.Request.japi_include`
         self.included = included or list()
+
+        #: The JSON API links object.
         self.links = links or dict()
+
+        #: The JSON API meta object.
         self.meta = meta or dict()
 
+        #: The pagination, which is used for the collection.
         self.pagination = pagination
         return None
 
@@ -194,7 +204,7 @@ class Resource(ResponseBuilder, IncludeMixin):
     Contains a resource or ``None`` as primary :attr:`data`.
 
     :arg ~jsonapi.request.Request request:
-        The request, to which this object responds
+        The current request
     :arg data:
         A single resource or ``None``.
     :arg list included:
@@ -241,8 +251,9 @@ class Resource(ResponseBuilder, IncludeMixin):
 
 class NewResource(Resource):
     """
-    This response sets the ``LOCATION`` http header and should be used for
-    a new resource, which has been created during the request handling.
+    The same as :class:`~jsonapi.response_builder.Resource` but also sets
+    the ``LOCATION`` header and should be used for a new resource, which has
+    been created during the request handling.
     """
 
     def to_response(self, status=200, headers=None):
@@ -258,7 +269,7 @@ class Relationship(ResponseBuilder):
     Builds a JSON API response, which contains a relationship.
 
     :arg ~jsonapi.request.Request request:
-        The request, to which this object responds
+        The current request
     :arg resource:
         A resource object
     :arg str relname:
@@ -276,8 +287,14 @@ class Relationship(ResponseBuilder):
         """
         super().__init__(request=request)
 
+        #: The name of the relationship
         self.relname = relname or request.japi_uri_arguments["relname"]
+
+        #: A resource object, on which the relationship is defined.
         self.resource = resource
+
+        #: A pagination instance, which describes the pagination in case
+        #: of a to-many relationship.
         self.pagination = pagination
         return None
 
@@ -304,7 +321,7 @@ class MetaOnly(ResponseBuilder):
     Only responds with top-level :attr:`meta` data.
 
     :arg ~jsonapi.request.Request request:
-        The request, to which this object responds
+        The current request
     :arg dict meta:
         The JSON API meta object
     """

@@ -62,9 +62,15 @@ class EmployeeCollection(jsonapi.handler.Handler):
         if request.has_filter("name", "startswith"):
             mongo_filters["name__startswith"] = request.get_filter("name", "startswith")
 
-        print(mongo_filters)
+        # The collection can be sorted based on the *name* field.
+        mongo_order = list()
+        if request.get_order("name") == "+":
+            mongo_order.append("name")
+        else:
+            mongo_order.append("-name")
 
         employees = Employee.objects(**mongo_filters)\
+            .order_by(*mongo_order)\
             .skip(pagination.offset)\
             .limit(pagination.limit)
 
@@ -186,8 +192,8 @@ class EmployeeRelatedChief(jsonapi.handler.Handler):
 
 def create_api():
     """
-    We put the initialisation of our API in this factory method. At this point,
-    we create an API instance and register the Employee encoder and all
+    We put the initialisation of our API in this factory function. At this
+    point, we create an API instance and register the Employee encoder and all
     handlers.
     """
     api = jsonapi_flask.api.API("/api")

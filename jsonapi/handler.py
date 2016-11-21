@@ -24,7 +24,7 @@
 
 """
 jsonapi.handler
-====================
+===============
 
 This module contains the base class for all *py-jsonapi* resource handlers.
 The implementation is straight forward::
@@ -79,7 +79,7 @@ class Handler(object):
 
     def init_api(self, api):
         """
-        Binds the handler to the *api*.
+        Binds the handler to the *api*. This method can be called at most once.
 
         :arg ~jsonapi.api.API:
         """
