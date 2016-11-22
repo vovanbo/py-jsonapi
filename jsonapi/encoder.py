@@ -220,11 +220,14 @@ class EncoderMethod(object):
 
     :arg str name:
         The name of the encoded object in the JSON API document.
+    :arg str mapped_key:
+        The name of the property on the resource class, which is mapped to
+        the JSON API field.
     :arg callable fencode:
         The method, which JSON API encodes a value and returns it.
     """
 
-    def __init__(self, name=None, fencode=None):
+    def __init__(self, name=None, mapped_key=None, fencode=None):
         """
         """
         #: The name of the encoded object in the JSON API document.
@@ -239,6 +242,11 @@ class EncoderMethod(object):
 
         #: The name of this encoder method.
         self.key = None
+
+        #: The key on the resource class, which is mapped to this JSON API
+        #: field.
+        #: If none, we use the :attr:`key`.
+        self.mapped_key = None
         return None
 
     def __call__(self, fencode):
@@ -276,7 +284,7 @@ class EncoderMethod(object):
 class Attribute(EncoderMethod):
 
     def default_encode(self, encoder, resource, request):
-        return getattr(resource, self.key)
+        return getattr(resource, self.mapped_key)
 
 
 # Relationships
@@ -318,7 +326,7 @@ class ToOneRelationship(Relationship):
         return d
 
     def default_encode(self, encoder, resource, request, *, require_data=False):
-        return getattr(resource, self.key)
+        return getattr(resource, self.mapped_key)
 
 
 class ToManyRelationship(Relationship):
@@ -354,7 +362,7 @@ class ToManyRelationship(Relationship):
     def default_encode(
         self, encoder, resource, request, *, require_data=False, pagination=None
         ):
-        return getattr(resource, self.key)
+        return getattr(resource, self.mapped_key)
 
 
 # Meta
@@ -363,7 +371,7 @@ class ToManyRelationship(Relationship):
 class Meta(EncoderMethod):
 
     def default_encode(self, encoder, resource, request):
-        return getattr(resource, self.key)
+        return getattr(resource, self.mapped_key)
 
 
 # Link
@@ -372,7 +380,7 @@ class Meta(EncoderMethod):
 class Link(EncoderMethod):
 
     def default_encode(self, encoder, resource, request):
-        return getattr(resource, self.key)
+        return getattr(resource, self.mapped_key)
 
 
 # Encoder
@@ -431,6 +439,7 @@ class Encoder(object):
         assert isinstance(method, EncoderMethod)
 
         method.name = method.name or key
+        method.mapped_key = method.mapped_key or key
         method.key = key
 
         if isinstance(method, Attribute):
