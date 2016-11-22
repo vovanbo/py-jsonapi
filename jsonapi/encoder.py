@@ -128,8 +128,15 @@ that the *to-many* relationship can be paginated::
                 total_resources=article.comments.count()
             )
 
-        comments = article.limit(pagination.limit).offset(pagination.offset)
+        comments = article.comments\\
+            .limit(pagination.limit)\\
+            .offset(pagination.offset)
         return (comments, pagination)
+
+If you don't use the pagination feature, you can simply return the list
+of comments::
+
+    return comments
 
 links
 -----
@@ -181,6 +188,7 @@ import logging
 import types
 
 # local
+from .pagination import BasePagination
 from .utilities import Symbol
 
 
@@ -202,8 +210,6 @@ LOG = logging.getLogger(__file__)
 
 #: Can be returned from an :class:`EncoderMethod` to indicate, that a field
 #: is not available or should not be included in the final resource object.
-#:
-#: TODO: Support this symbol in the encoder class.
 Omit = Symbol("Omit")
 
 
@@ -298,15 +304,17 @@ class ToOneRelationship(Relationship):
         fencode = self.fencode or self.default_encode
         d = fencode(encoder, resource, request, require_data=require_data)
 
-        # If *d* is only a resource, we need to wrap it in a proper
-        # JSON API relationship object.
-        if (not isinstance(d, dict)) or d is None:
-            d = dict(
-                data=encoder.api.ensure_identifier_object(d),
-                links=self.links(encoder, resource)
-            )
+        # *d* can be None, Omit or a resource. In these cases, we need to
+        # wrap it in a JSON API relationship object.
+        if d is None:
+            d = dict(data=None)
+        elif d == Omit:
+            d = dict()
+        elif not isinstance(d, dict):
+            d = dict(data=encoder.api.ensure_identifier_object(d))
 
-        # TODO: Update *d* with the links.
+        # Add the links.
+        d.setdefault("links", dict()).update(self.links(encoder, resource))
         return d
 
     def default_encode(self, encoder, resource, request, *, require_data=False):
@@ -324,15 +332,23 @@ class ToManyRelationship(Relationship):
             pagination=pagination
         )
 
-        # *d* may be only a list of resources. In this case, we need to
-        # serialize the resources and build the JSONAPI relationship object.
-        if not isinstance(d, dict):
+        # *d* can be a list of resources or Omit. In these cases, we need to
+        # wrap it in a JSON API relationship object.
+        if d == Omit:
+            d = dict()
+        elif isinstance(d, tuple) and isinstance(d[1], BasePagination):
             d = dict(
                 data=[encoder.api.ensure_identifier_object(item) for item in d],
-                links=self.links(encoder, resource)
+            )
+            d.setdefault("meta", dict()).update(pagination.json_meta())
+            d.setdefault("links", dict()).update(pagination.json_links())
+        elif not isinstance(d, dict):
+            d = dict(
+                data=[encoder.api.ensure_identifier_object(item) for item in d]
             )
 
-        # TODO: Update *d* with the links.
+        # Add the links.
+        d.setdefault("links", dict()).update(self.links(encoder, resource))
         return d
 
     def default_encode(
