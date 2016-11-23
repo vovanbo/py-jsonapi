@@ -502,6 +502,9 @@ class UnsortableField(BadRequest):
 
     def __init__(self, typename, fieldname, **kargs):
         self.typename = typename
+
+        if isinstance(fieldname, list):
+            fieldname = ".".join(fieldname)
         self.fieldname = fieldname
 
         detail = "The field '{}.{}' can not be used for sorting."\
@@ -524,7 +527,22 @@ class UnfilterableField(BadRequest):
         self.filtername = filtername
 
         detail = "The field '{}.{}' does not support the '{}' filter."\
-            .format(typename, filtername, fieldname)
+            .format(typename, fieldname, filtername)
+        super().__init__(detail=detail, **kargs)
+        return None
+
+
+class FieldNotFound(BadRequest):
+    """
+    Raised, if a field does not exist on a type, but is referenced in a document
+    or the query string.
+    """
+
+    def __init__(self, typename, fieldname, **kargs):
+        self.typename = typename
+        self.fieldname = fieldname
+
+        detail = "The field '{}.{}' does not exist.".format(typename, fieldname)
         super().__init__(detail=detail, **kargs)
         return None
 

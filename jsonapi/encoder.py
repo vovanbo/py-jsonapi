@@ -245,8 +245,8 @@ class EncoderMethod(object):
 
         #: The key on the resource class, which is mapped to this JSON API
         #: field.
-        #: If none, we use the :attr:`key`.
-        self.mapped_key = None
+        #: If None, we use the :attr:`key`.
+        self.mapped_key = mapped_key
         return None
 
     def __call__(self, fencode):
@@ -340,6 +340,7 @@ class ToManyRelationship(Relationship):
             pagination=pagination
         )
 
+
         # *d* can be a list of resources or Omit. In these cases, we need to
         # wrap it in a JSON API relationship object.
         if d == Omit:
@@ -353,7 +354,7 @@ class ToManyRelationship(Relationship):
         elif not isinstance(d, dict):
             d = dict(
                 data=[encoder.api.ensure_identifier_object(item) for item in d]
-            )
+            )            
 
         # Add the links.
         d.setdefault("links", dict()).update(self.links(encoder, resource))

@@ -113,6 +113,9 @@ class Relationship(object):
     :arg str name:
         The name of the encoded relationship (the JSON API name of the
         relationship).
+    :arg str mapped_key:
+        The name of the property on the resource class, which references the
+        related resources.
     :arg callable fget:
         Receives a resource and returns the related resources.
     """
@@ -123,7 +126,9 @@ class Relationship(object):
     #: True, if this is a to-many relationship
     to_many = None
 
-    def __init__(self, name=None, fget=None, remote_types=None):
+    def __init__(
+        self, name=None, mapped_key=None, fget=None, remote_types=None
+        ):
         """
         """
         # This is an abstract class.
@@ -144,6 +149,11 @@ class Relationship(object):
         #: The name of the relationship descriptor on the :class:`Includer`
         #: class, on which it has been defined.
         self.key = None
+
+        #: The key on the resource class, which is mapped to this JSON API
+        #: field.
+        #: If None, we use :attr:`key`.
+        self.mapped_key = mapped_key
         return None
 
     def __call__(self, fget):
@@ -163,7 +173,7 @@ class Relationship(object):
             return types.MethodType(self.default_get, includer)
 
     def default_get(self, includer, resource, request):
-        return getattr(resource, self.key)
+        return getattr(resource, self.mapped_key)
 
     def get(self, includer, resource, request):
         if self.fget:
@@ -204,6 +214,9 @@ class Includer(object):
         The API, that owns this includer.
     """
 
+    #: The resource class, which is associated with this includer.
+    resource_class = None
+
     def __init__(self, api=None):
         """
         """
@@ -222,6 +235,7 @@ class Includer(object):
         """
         assert isinstance(method, (ToOneRelationship, ToManyRelationship))
         method.name = method.name or key
+        method.mapped_key = method.mapped_key or key
         method.key = key
         self.__relationships[method.name] = method
         return None
@@ -269,6 +283,9 @@ class Includer(object):
         :arg list path:
             A relationship path (list of relationship names)
         """
+        if not path:
+            return True
+
         name, *path = path
         relationship = self.__relationships.get(name)
         if relationship is None:
