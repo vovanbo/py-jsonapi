@@ -354,7 +354,7 @@ class ToManyRelationship(Relationship):
         elif not isinstance(d, dict):
             d = dict(
                 data=[encoder.api.ensure_identifier_object(item) for item in d]
-            )            
+            )
 
         # Add the links.
         d.setdefault("links", dict()).update(self.links(encoder, resource))
@@ -421,11 +421,11 @@ class Encoder(object):
             self.typename = self.resource_class.__name__
 
         # Detect the fields, links and meta methods.
-        self.__attributes = dict()
-        self.__relationships = dict()
-        self.__meta = dict()
-        self.__links = dict()
-        self.__detect_encoder_methods()
+        self._attributes = dict()
+        self._relationships = dict()
+        self._meta = dict()
+        self._links = dict()
+        self._detect_encoder_methods()
         return None
 
     def add_encoder_method(self, key, method):
@@ -444,16 +444,16 @@ class Encoder(object):
         method.key = key
 
         if isinstance(method, Attribute):
-            self.__attributes[method.name] = method
+            self._attributes[method.name] = method
         elif isinstance(method, (ToOneRelationship, ToManyRelationship)):
-            self.__relationships[method.name] = method
+            self._relationships[method.name] = method
         elif isinstance(method, Meta):
-            self.__meta[method.name] = method
+            self._meta[method.name] = method
         elif isinstance(method, Link):
-            self.__links[method.name] = method
+            self._links[method.name] = method
         return None
 
-    def __detect_encoder_methods(self):
+    def _detect_encoder_methods(self):
         """
         Detects :class:`EncoderMethod`s and binds them to this instance.
         """
@@ -464,6 +464,16 @@ class Encoder(object):
                 continue
             self.add_encoder_method(key, prop)
         return None
+
+    def get_field_descriptor(self, field):
+        """
+        Returns the :class:`EncoderMethod` for the field. If the field has no
+        descriptor or does not exist, ``None`` is returned.
+
+        :arg str field:
+            The name of an attribute or relationship.
+        """
+        return self._attributes.get(field) or self._relationships.get(field)
 
     @property
     def api(self):
@@ -586,7 +596,7 @@ class Encoder(object):
         fields = request.japi_fields.get(self.typename)
 
         d = dict()
-        for name, attr in self.__attributes.items():
+        for name, attr in self._attributes.items():
             if fields is None or name in fields:
                 d[name] = attr.encode(self, resource, request)
         return d
@@ -615,7 +625,7 @@ class Encoder(object):
         fields = request.japi_fields.get(self.typename)
 
         d = dict()
-        for name, rel in self.__relationships.items():
+        for name, rel in self._relationships.items():
             if fields is None or name in fields:
                 d[name] = self.serialize_relationship(
                     name, resource, request,
@@ -650,7 +660,7 @@ class Encoder(object):
             The JSON API relationship object for the relationship *relname*
             of the *resource*
         """
-        rel = self.__relationships[relname]
+        rel = self._relationships[relname]
 
         if isinstance(rel, ToOneRelationship):
             ret = rel.encode(self, resource, request, require_data=require_data)
@@ -678,7 +688,7 @@ class Encoder(object):
         """
         d = dict()
         d["self"] = self.api.resource_uri(resource)
-        for name, link in self.__links.items():
+        for name, link in self._links.items():
             d[name] = link.encode(self, resource, request)
         return d
 
@@ -698,6 +708,6 @@ class Encoder(object):
             A JSON API meta object
         """
         d = dict()
-        for name, meta in self.__meta.items():
+        for name, meta in self._meta.items():
             d[name] = meta.encode(self, resource, request)
         return d

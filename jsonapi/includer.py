@@ -222,8 +222,8 @@ class Includer(object):
         """
         self.__api = api
 
-        self.__relationships = dict()
-        self.__detect_includer_methods()
+        self._relationships = dict()
+        self._detect_includer_methods()
         return None
 
     def add_includer_method(self, key, method):
@@ -237,10 +237,10 @@ class Includer(object):
         method.name = method.name or key
         method.mapped_key = method.mapped_key or key
         method.key = key
-        self.__relationships[method.name] = method
+        self._relationships[method.name] = method
         return None
 
-    def __detect_includer_methods(self):
+    def _detect_includer_methods(self):
         """
         Detects the :class:`ToOneRelationship` and :class:`ToManyRelationship`
         descriptors and adds them to an instance dictionary.
@@ -253,6 +253,16 @@ class Includer(object):
 
             self.add_includer_method(key, prop)
         return None
+
+    def get_descriptor(self, relname):
+        """
+        Returns the :class:`ToOneRelationship` or :class:`ToManyRelationship`
+        descriptor for the relationship, if one exists and ``None`` otherwise.
+
+        :arg str relname:
+            The name of a relationship.
+        """
+        return self._relationships.get(relname)
 
     @property
     def api(self):
@@ -287,7 +297,7 @@ class Includer(object):
             return True
 
         name, *path = path
-        relationship = self.__relationships.get(name)
+        relationship = self._relationships.get(name)
         if relationship is None:
             return False
 
@@ -350,7 +360,7 @@ class Includer(object):
             The current request context.
         """
         name, *path = path
-        relationship = self.__relationships[name]
+        relationship = self._relationships[name]
 
         related = set()
         if relationship.to_one:
