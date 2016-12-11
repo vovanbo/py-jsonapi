@@ -26,7 +26,7 @@
 from setuptools import setup
 
 # local
-import jsonapi
+import jsonapi.version
 
 
 try:
